@@ -7,11 +7,13 @@ const DAG = {
   exempel: false,
   beslutstid: '16:00',
   arenden: [
-    { id: 'a1', beteckning: '2026/27:TU1', utskott: 'TU', titel: 'Laddning vid rastplatser', fraga: 'Ska staten bygga laddning?', utskottSager: 'nej', motioner: 14, status: 'beslutat',
+    { id: 'a1', beteckning: '2026/27:TU1', utskott: 'TU', titel: 'Laddning vid rastplatser', fraga: 'Ska staten bygga laddning?', utskottSager: 'nej', reservationer: 4, status: 'beslutat',
       resultat: { utfall: 'nej', ja: 150, nej: 175, avstar: 0, franvarande: 24, partier: [{ parti: 'P1', ja: 100, nej: 0, avstar: 0, franvarande: 10 }, { parti: 'P2', ja: 50, nej: 175, avstar: 0, franvarande: 14 }] } },
-    { id: 'a2', beteckning: '2026/27:UbU1', utskott: 'UbU', titel: 'Mobilfri skoldag', fraga: 'Ska mobiler samlas in?', status: 'beslutat',
+    { id: 'a2', beteckning: '2026/27:UbU1', utskott: 'UbU', titel: 'Mobilfri skoldag', fraga: 'Ska mobiler samlas in?', reservationer: 1, status: 'beslutat',
       resultat: { utfall: 'ja', ja: 175, nej: 150, avstar: 0, franvarande: 24 } },
     { id: 'a3', beteckning: '2026/27:CU1', utskott: 'CU', titel: 'Kontantinsats', fraga: 'Ska staten gå i borgen?', status: 'kommande' },
+    { id: 'a4', beteckning: '2026/27:SkU6', utskott: 'SkU', titel: 'Skatteavtal med P-land', fraga: 'Nytt skatteavtal.', reservationer: 0, status: 'beslutat',
+      resultat: { utfall: 'ja', ja: 300, nej: 0, avstar: 0, franvarande: 49 } },
   ],
   nasta: { datum: '2026-11-26', tid: '16:00', antal: 3 },
 };
@@ -29,6 +31,21 @@ test('visar första ärendet med fråga och röstknappar', async ({ page }) => {
   await expect(kort).toContainText('Ska staten bygga laddning?');
   await expect(page.getByTestId('position')).toHaveText('1 av 3');
   await expect(page.getByRole('button', { name: 'Ja' })).toBeVisible();
+  await expect(page.getByTestId('omstritt')).toHaveText('Omstritt · 4 reservationer');
+});
+
+test('eniga ärenden röstas inte om men visas i sammanfattningen', async ({ page }) => {
+  await oppna(page);
+  for (const val of ['Ja', 'Nej']) {
+    await page.getByRole('button', { name: val }).click();
+    await page.getByRole('button', { name: 'Tillbaka' }).click();
+  }
+  await page.getByRole('button', { name: 'Ja' }).click();
+  const eniga = page.getByTestId('eniga');
+  await expect(eniga).toContainText('Skatteavtal med P-land');
+  await expect(eniga).toContainText('riksdagen sa ja');
+  await eniga.getByRole('button').click();
+  await expect(page.getByTestId('resultat')).toContainText('300–0');
 });
 
 test('röst på beslutat ärende visar utfall, plenisal och partier', async ({ page }) => {

@@ -11,9 +11,15 @@
       "titel": "Snabbladdning vid statliga rastplatser",
       "fraga": "Ska staten ansvara för att det finns snabbladdning för elbil vid rastplatser längs de stora vägarna?",
       "utskottSager": "nej",
-      "motioner": 14,
       "status": "beslutat",
-      "resultat": { "utfall": "nej", "ja": 150, "nej": 175, "avstar": 0, "franvarande": 24 }
+      "resultat": {
+        "utfall": "nej",
+        "ja": 150,
+        "nej": 175,
+        "avstar": 0,
+        "franvarande": 24
+      },
+      "reservationer": 4
     },
     {
       "id": "exempel-2",
@@ -22,9 +28,15 @@
       "titel": "Mobilfri skoldag",
       "fraga": "Ska mobiler samlas in vid skoldagens början i alla årskurser, inte bara under lektionerna?",
       "utskottSager": "ja",
-      "motioner": 9,
       "status": "beslutat",
-      "resultat": { "utfall": "ja", "ja": 175, "nej": 150, "avstar": 0, "franvarande": 24 }
+      "resultat": {
+        "utfall": "ja",
+        "ja": 175,
+        "nej": 150,
+        "avstar": 0,
+        "franvarande": 24
+      },
+      "reservationer": 1
     },
     {
       "id": "exempel-3",
@@ -33,8 +45,8 @@
       "titel": "Hjälp med kontantinsatsen",
       "fraga": "Ska staten gå i borgen för en del av kontantinsatsen när man köper sin första bostad?",
       "utskottSager": "nej",
-      "motioner": 21,
-      "status": "kommande"
+      "status": "kommande",
+      "reservationer": 2
     },
     {
       "id": "exempel-4",
@@ -43,9 +55,14 @@
       "titel": "Fri entré på statliga museer",
       "fraga": "Ska det vara gratis att besöka de statliga museerna för alla, året runt?",
       "utskottSager": "nej",
-      "motioner": 6,
-      "status": "kommande"
+      "status": "kommande",
+      "reservationer": 0
     }
   ],
-  "nasta": { "datum": "2026-11-26", "tid": "16:00", "antal": 3 }
+  "nasta": {
+    "datum": "2026-11-26",
+    "tid": "16:00",
+    "antal": 3
+  },
+  "debattstart": "09:00"
 }

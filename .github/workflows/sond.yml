@@ -21,3 +21,5 @@ jobs:
       - run: node scripts/sond.mjs
         env:
           SOND_DAG: ${{ inputs.dag }}
+      - name: Provkör datapipelinen för dagen
+        run: KK_DATUM=${{ inputs.dag }} node scripts/hamta.mjs && node -e "const d=require('./data/idag.json');console.log(JSON.stringify({...d,arenden:d.arenden.map(a=>({titel:a.titel,utskott:a.utskott,reservationer:a.reservationer,utskottSager:a.utskottSager,status:a.status,fraga:a.fraga}))},null,1))"

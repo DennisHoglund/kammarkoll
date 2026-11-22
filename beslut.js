@@ -25,13 +25,18 @@
   let vy = { typ: 'flode' };
 
   function render(el, data, opts) {
+    data = data.__ra || data; // render anropas igen med härledd data – utgå alltid från originalet
     const roster = KKData.roster(data.datum);
-    const arenden = data.arenden || [];
+    const alla = data.arenden || [];
+    // Ärenden utan reservationer är eniga – de visas i sammanfattningen men behöver ingen röst.
+    const strid = alla.filter(a => a.reservationer !== 0);
+    const arenden = strid.length ? strid : alla;
+    data = Object.assign({}, data, { __ra: data, arenden, eniga: strid.length ? alla.filter(a => a.reservationer === 0) : [] });
     const offline = opts && opts.offline;
 
-    if (!arenden.length) return tomDag(el, data);
+    if (!alla.length) return tomDag(el, data);
     if (vy.typ === 'resultat') {
-      const a = arenden.find(x => x.id === vy.id);
+      const a = alla.find(x => x.id === vy.id);
       if (a) return resultat(el, data, a, roster);
       vy = { typ: 'flode' };
     }
@@ -66,6 +71,7 @@
           </div>
           <div class="chips">
             ${a.utskottSager ? `<span class="chip bla">Utskottet säger ${esc(a.utskottSager)}</span>` : ''}
+            ${reservationsChip(a.reservationer)}
             ${a.motioner ? `<span class="chip gra">${ikon('dok', 'style="width:14px;height:14px"')}${a.motioner} motioner ingår</span>` : ''}
           </div>
           <p class="fraga">Hur skulle du rösta?</p>
@@ -83,6 +89,15 @@
       vy = a.status === 'beslutat' ? { typ: 'resultat', id: a.id } : { typ: 'flode' };
       render(el, data);
     }));
+  }
+
+  function reservationsChip(n) {
+    if (n == null) return '';
+    if (n === 0) return '<span class="chip gra">Enigt utskott</span>';
+    const text = `${n} reservation${n === 1 ? '' : 'er'}`;
+    return n >= 3
+      ? `<span class="chip orange" data-testid="omstritt">Omstritt · ${text}</span>`
+      : `<span class="chip gra">${text}</span>`;
   }
 
   function jamfor(dittVal, a) {
@@ -121,12 +136,27 @@
       </section>
       <h2>Dagens beslut</h2>
       <div class="lista glas">${rader}</div>
+      ${eniga(data)}
       ${nastaInfo(data)}
       ${data.exempel ? '<p class="liten">Exempeldata</p>' : ''}`;
     el.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
-      const a = data.arenden.find(x => x.id === b.dataset.id);
+      const a = data.arenden.concat(data.eniga || []).find(x => x.id === b.dataset.id);
       if (a && a.status === 'beslutat') { vy = { typ: 'resultat', id: a.id }; render(el, data); }
     }));
+  }
+
+  function eniga(data) {
+    if (!data.eniga || !data.eniga.length) return '';
+    const rader = data.eniga.map(a => {
+      const klar = a.status === 'beslutat' && a.resultat;
+      return `<button type="button" class="rad-arende" data-id="${esc(a.id)}">
+        <span class="markor vantar">${ikon(klar ? 'check' : 'klocka')}</span>
+        <span class="text"><span class="titel">${esc(a.titel)}</span><span class="under">${esc(KKData.utskott(a.utskott).namn)}${klar ? ' · riksdagen sa ' + VAL_TEXT[a.resultat.utfall] : ''}</span></span>
+      </button>`;
+    }).join('');
+    return `<h2>Eniga beslut <span style="color:var(--text-3);font-weight:600">${data.eniga.length}</span></h2>
+      <p class="liten" style="text-align:left;margin-top:-8px">Inga reservationer i utskottet – därför inget att rösta om.</p>
+      <div class="lista glas" data-testid="eniga">${rader}</div>`;
   }
 
   function nastaInfo(data) {

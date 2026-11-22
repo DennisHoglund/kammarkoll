@@ -1,5 +1,5 @@
 /* Service worker: appfiler och data nätet först (så telefonen inte fastnar på gammal version), cache som reserv. */
-const VERSION = 'kammarkoll-v1';
+const VERSION = 'kammarkoll-v2';
 const FILER = [
   './', 'index.html', 'styles.css', 'app.js', 'data.js', 'beslut.js', 'kammarsal.js',
   'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png', 'icons/favicon.svg',

@@ -18,6 +18,7 @@ En PWA för iPhone som gör riksdagens arbete begripligt och lite roligt, byggd 
 ## Funktioner – Dagens beslut
 1. Ett kort per ärende (betänkande) som beslutas idag: utskott, titel, fråga i klartext, vad utskottet föreslår, antal motioner.
 2. Användaren röstar Nej / Avstår / Ja.
+   Bara ärenden **med reservationer** röstas om (omstridda först, ≥3 reservationer märks "Omstritt"). Eniga ärenden (0 reservationer) listas under "Eniga beslut" i sammanfattningen.
 3. Beslutat ärende → resultatvy: utfall, plenisal med 349 platser (ja/nej/avstår/frånvarande), "du röstade som/mot riksdagen", partistaplar.
 4. Alla röstade → "Din dag i kammaren": X av Y som riksdagen, lista med bock/kryss/väntar, nästa beslutsdag.
 5. Dag utan beslut → tomt läge + nästa beslutsdag.
@@ -34,7 +35,10 @@ Den incheckade filen är **exempeldata** (`"exempel": true`). Actions skriver ö
 
 ## Källor i API:et (att verifiera)
 - Betänkanden: `dokumentlista/?doktyp=bet&rm=2026%2F27&utformat=json` – **verifierat i CI 2026-11-22**: fälten `dok_id, rm, beteckning, organ, titel, notis, summary, beslutsdag, debattdag, beslutad, klockslag, reservationer, dokument_url_html` finns. `beslutsdag` är `"0"` när den inte är satt. 109 betänkanden 2026/27, nästa beslutsdag 2026-11-25 (17 st).
-- Voteringar: `voteringlista/?rm=…&bet=…&utformat=json` – fälten `votering_id, punkt, parti, rost, avser` (dokumenterade för dataset). Första punkten i sakfrågan räknas.
+- Voteringar: `voteringlista/?rm=…&bet=…&utformat=json` – **verifierat**: `votering_id, punkt, parti, rost (Ja/Nej/Avstår/Frånvarande), avser (sakfrågan/motivfrågan), votering (huvud), systemdatum`. Första huvudvoteringen i sakfrågan räknas; `systemdatum` ger voteringstiden.
+- Kalender: `kalender/?org=kamm&utformat=json&sz=500` – **verifierat**: datumparametrar ignoreras, svaret innehåller alla kommande kammarhändelser. Filtreras på `DTSTART` (ÅÅÅÅMMDDTHHMMSS). Votering = `CATEGORIES` innehåller "votering" (SUMMARY "Beslut"). Ingen CORS-header – därför hämtning i Actions.
+- Fråga i klartext = första stycket i `notis` (HTML), kortat till ~260 tecken. Utskottets förslag läses ur "föreslår att riksdagen säger ja/nej".
+- `scripts/sond.mjs` + workflow "Sond" (manuell) skriver ut råsvar och provkör pipelinen för valfri dag.
 - Om fälten heter annat: justera `parseBetankanden`/`parseVotering` och fixturerna i `tests/hamta.test.mjs`.
 
 ## Tester
@@ -47,7 +51,7 @@ Den incheckade filen är **exempeldata** (`"exempel": true`). Actions skriver ö
 - Dagens beslut valdes framför "Dagens motion" – motioner kommer i klump under allmänna motionstiden, beslut kommer löpande.
 
 ## Kvar att göra
-- Verifiera voteringlista mot riktigt svar (första beslutsdagen 2026-11-25). Undersök om `klockslag` kan ge `beslutstid`. `reservationer` kan visa hur oenigt utskottet var.
+- Följ upp första riktiga beslutsdagen 2026-11-25 (voteringar per betänkande, flera punkter).
 - Fråga i klartext och antal motioner (AI-sammanfattning i Action).
 - Egen rapportsida i appens färgprofil (som Svampkartan), historik/trend.
 - Cron-körningar publicerar utan `/rapport/` – behåll senaste rapport.

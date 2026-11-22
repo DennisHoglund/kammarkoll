@@ -21,6 +21,24 @@ export function riksmote(datum) {
 const lista = v => (Array.isArray(v) ? v : v ? [v] : []);
 const dag = v => (typeof v === 'string' ? v.slice(0, 10) : '');
 
+/** Första stycket ur riksdagens notis (HTML) som ren text, max ~260 tecken. */
+export function forstaStycke(html) {
+  const forsta = String(html || '').split(/<\/p>|<ul>/i)[0];
+  const text = forsta.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  if (text.length <= 260) return text;
+  const klipp = text.slice(0, 260);
+  const punkt = klipp.lastIndexOf('. ');
+  return punkt > 120 ? klipp.slice(0, punkt + 1) : klipp.replace(/\s+\S*$/, '') + '…';
+}
+
+/** Vad utskottet föreslår, utläst ur notisen ("…föreslår att riksdagen säger ja/nej…"). */
+export function utskottetsForslag(html) {
+  const t = String(html || '').toLowerCase();
+  if (/föreslår att riksdagen säger ja/.test(t)) return 'ja';
+  if (/föreslår att riksdagen säger nej/.test(t)) return 'nej';
+  return null;
+}
+
 /** Plockar betänkanden ur ett dokumentlista-svar. */
 export function parseBetankanden(json) {
   const dok = lista(json && json.dokumentlista && json.dokumentlista.dokument);
@@ -30,7 +48,9 @@ export function parseBetankanden(json) {
     beteckning: d.beteckning,
     utskott: d.organ,
     titel: d.titel || d.notisrubrik || '',
-    sammanfattning: d.notis || d.summary || '',
+    sammanfattning: forstaStycke(d.notis || d.summary || ''),
+    utskottSager: utskottetsForslag(d.notis || d.summary || ''),
+    reservationer: Number.isFinite(Number(d.reservationer)) ? Number(d.reservationer) : null,
     beslutsdag: dag(d.beslutsdag) || dag(d.beslutad),
     debattdag: dag(d.debattdag),
     url: d.dokument_url_html ? (String(d.dokument_url_html).startsWith('//') ? 'https:' + d.dokument_url_html : d.dokument_url_html) : null,
@@ -41,8 +61,9 @@ export function parseBetankanden(json) {
 export function parseVotering(json) {
   const rader = lista(json && json.voteringlista && json.voteringlista.votering);
   if (!rader.length) return null;
-  const sak = rader.filter(r => !r.avser || String(r.avser).toLowerCase() === 'sakfrågan');
-  const urval = sak.length ? sak : rader;
+  const huvud = rader.filter(r => !r.votering || r.votering === 'huvud');
+  const sak = huvud.filter(r => !r.avser || String(r.avser).toLowerCase() === 'sakfrågan');
+  const urval = sak.length ? sak : huvud.length ? huvud : rader;
   const forsta = [...urval].sort((a, b) => Number(a.punkt) - Number(b.punkt))[0];
   const rows = urval.filter(r => r.votering_id === forsta.votering_id);
   const tom = () => ({ ja: 0, nej: 0, avstar: 0, franvarande: 0 });
@@ -55,15 +76,28 @@ export function parseVotering(json) {
     const p = (r.parti || '–').toUpperCase();
     (per[p] = per[p] || tom())[k]++;
   }
+  const tid = String(forsta.systemdatum || '').slice(11, 16);
   return {
     utfall: tot.ja > tot.nej ? 'ja' : 'nej',
+    ...(tid ? { tid } : {}),
     ...tot,
     partier: Object.entries(per).map(([parti, v]) => ({ parti, ...v })).sort((a, b) => (b.ja + b.nej) - (a.ja + a.nej)),
   };
 }
 
+/** Tider för kammaren en viss dag ur kalender-API:et (org=kamm ger alla kommande händelser, filtreras här). */
+export function parseKalender(json, datum) {
+  const kod = datum.replaceAll('-', '');
+  const poster = lista(json && json.kalenderlista && json.kalenderlista.kalender)
+    .filter(k => String(k.DTSTART || '').startsWith(kod));
+  const klocka = k => { const t = String(k.DTSTART).slice(9, 13); return t.length === 4 ? `${t.slice(0, 2)}:${t.slice(2)}` : null; };
+  const beslut = poster.find(k => /votering/i.test(k.CATEGORIES || '') || /^beslut/i.test(k.SUMMARY || ''));
+  const debatt = poster.filter(k => /debatt/i.test(k.SUMMARY || '')).sort((a, b) => String(a.DTSTART).localeCompare(String(b.DTSTART)))[0];
+  return { beslutstid: beslut ? klocka(beslut) : null, debattstart: debatt ? klocka(debatt) : null };
+}
+
 /** Bygger appens format av dagens betänkanden + ev. voteringar. */
-export function bygg(datum, betankanden, voteringar) {
+export function bygg(datum, betankanden, voteringar, kalender = {}) {
   const idag = betankanden.filter(b => b.beslutsdag === datum);
   const arenden = idag.map(b => {
     const res = voteringar[b.id] || null;
@@ -73,14 +107,25 @@ export function bygg(datum, betankanden, voteringar) {
       utskott: b.utskott,
       titel: b.titel,
       fraga: b.sammanfattning || b.titel,
+      utskottSager: b.utskottSager,
+      reservationer: b.reservationer,
       status: res ? 'beslutat' : 'kommande',
       ...(res ? { resultat: res } : {}),
       url: b.url,
     };
   });
   const framtid = [...new Set(betankanden.map(b => b.beslutsdag).filter(d => d && d > datum))].sort();
-  const nasta = framtid.length ? { datum: framtid[0], antal: betankanden.filter(b => b.beslutsdag === framtid[0]).length } : null;
-  return { genererad: new Date().toISOString(), datum, exempel: false, beslutstid: null, arenden, nasta };
+  const nasta = framtid.length
+    ? { datum: framtid[0], tid: (kalender.nasta && kalender.nasta.beslutstid) || null, antal: betankanden.filter(b => b.beslutsdag === framtid[0]).length }
+    : null;
+  // Omstridda ärenden (flest reservationer) först.
+  arenden.sort((a, b) => (b.reservationer || 0) - (a.reservationer || 0));
+  return {
+    genererad: new Date().toISOString(), datum, exempel: false,
+    beslutstid: (kalender.idag && kalender.idag.beslutstid) || null,
+    debattstart: (kalender.idag && kalender.idag.debattstart) || null,
+    arenden, nasta,
+  };
 }
 
 async function hamtaJson(url) {
@@ -113,7 +158,13 @@ async function main() {
     }
   }
 
-  const ut = bygg(datum, betankanden, voteringar);
+  let kalJson = null;
+  try { kalJson = await hamtaJson(`${API}/kalender/?org=kamm&utformat=json&sz=500`); } catch (e) { console.warn('Kalender saknas:', e.message); }
+  const framtid = [...new Set(betankanden.map(b => b.beslutsdag).filter(d => d && d > datum))].sort();
+  const kalender = kalJson ? { idag: parseKalender(kalJson, datum), nasta: framtid[0] ? parseKalender(kalJson, framtid[0]) : null } : {};
+  console.log('Kalender:', JSON.stringify(kalender));
+
+  const ut = bygg(datum, betankanden, voteringar, kalender);
   await mkdir('data', { recursive: true });
   await writeFile('data/idag.json', JSON.stringify(ut, null, 2));
   console.log(`Skrev data/idag.json: ${ut.arenden.length} ärenden, ${Object.keys(voteringar).length} beslutade, nästa: ${JSON.stringify(ut.nasta)}`);

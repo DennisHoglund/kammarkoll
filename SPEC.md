@@ -23,13 +23,18 @@ En PWA för iPhone som gör riksdagens arbete begripligt och lite roligt, byggd 
 4. Alla röstade → "Din dag i kammaren": X av Y som riksdagen, lista med bock/kryss/väntar, nästa beslutsdag.
 5. Dag utan beslut → tomt läge + nästa beslutsdag.
 
+## Funktioner – Kammaren och Kalender
+- **Kammaren**: dagens program från kalendern. Kortet överst visar det som pågår (startat, nästa ej börjat, max 4 h) med "PÅGÅR NU" och länk till webb-tv, annars nästa händelse. Uppdateras varje minut. Tom dag → nästa sammanträde.
+- **Kalender**: dagväljare för de kommande 14 dagarna med kammarhändelser, orange prick = beslutsdag, dagens program och ärenden.
+
 ## Dataformat `data/idag.json`
 ```json
 { "genererad": "ISO", "datum": "ÅÅÅÅ-MM-DD", "exempel": false, "beslutstid": "16:00" | null,
   "arenden": [{ "id", "beteckning", "utskott": "TU", "titel", "fraga", "utskottSager"?, "motioner"?,
     "status": "kommande" | "beslutat", "url",
     "resultat"?: { "utfall": "ja"|"nej", "ja", "nej", "avstar", "franvarande", "partier": [{ "parti", "ja", "nej", "avstar", "franvarande" }] } }],
-  "nasta": { "datum", "tid"?, "antal" } | null }
+  "nasta": { "datum", "tid"?, "antal" } | null,
+  "program": [{ "datum", "tid" | null, "titel", "typ": "votering"|"arbetsplenum"|…, "arenden": [{ "beteckning", "titel" }] }] }
 ```
 Den incheckade filen är **exempeldata** (`"exempel": true`). Actions skriver över den vid deploy.
 
@@ -56,4 +61,4 @@ Den incheckade filen är **exempeldata** (`"exempel": true`). Actions skriver ö
 - Egen rapportsida i appens färgprofil (som Svampkartan), historik/trend.
 - Cron-körningar publicerar utan `/rapport/` – behåll senaste rapport.
 - "X % av Kammarkolls användare" kräver backend (Supabase, delat projekt, prefix `kammarkoll_`).
-- Flikarna Kammaren och Kalender.
+- Riktig pågår-status (t.ex. från webb-tv) i stället för uppskattning från kalendertider.

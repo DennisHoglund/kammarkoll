@@ -1,0 +1,23 @@
+name: Sond mot riksdagens API
+
+on:
+  workflow_dispatch:
+    inputs:
+      dag:
+        description: Beslutsdag att undersöka (ÅÅÅÅ-MM-DD)
+        default: '2026-11-25'
+
+permissions:
+  contents: read
+
+jobs:
+  sond:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/sond.mjs
+        env:
+          SOND_DAG: ${{ inputs.dag }}

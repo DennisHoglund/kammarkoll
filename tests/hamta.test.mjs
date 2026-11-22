@@ -99,6 +99,7 @@ test('första stycket kortas vid meningsslut', () => {
   const t = forstaStycke(lang);
   assert.ok(t.length <= 260 && t.endsWith('.'));
   assert.equal(forstaStycke('<p>Kort.</p><ul><li>x</li></ul>'), 'Kort.');
+  assert.equal(forstaStycke('<p>Utskottet föreslår ja till avtalet. Det nya avtalet syftar till att</p> <ul><li>a</li></ul>'), 'Utskottet föreslår ja till avtalet.');
 });
 
 test('utskottets förslag tolkas ur notisen', () => {

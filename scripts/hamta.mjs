@@ -27,7 +27,7 @@ export function forstaStycke(html) {
   const text = forsta.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
   // Stycket slutar ibland mitt i en mening före en punktlista – klipp då vid senaste meningsslut.
   if (text.length <= 260 && /[.!?…]$/.test(text)) return text;
-  if (text.length <= 260) { const p = text.lastIndexOf('. '); return p > 40 ? text.slice(0, p + 1) : text; }
+  if (text.length <= 260) { const p = text.lastIndexOf('. '); return p > 20 ? text.slice(0, p + 1) : text; }
   const klipp = text.slice(0, 260);
   const punkt = klipp.lastIndexOf('. ');
   return punkt > 120 ? klipp.slice(0, punkt + 1) : klipp.replace(/\s+\S*$/, '') + '…';

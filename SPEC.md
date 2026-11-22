@@ -33,7 +33,7 @@ En PWA för iPhone som gör riksdagens arbete begripligt och lite roligt, byggd 
 Den incheckade filen är **exempeldata** (`"exempel": true`). Actions skriver över den vid deploy.
 
 ## Källor i API:et (att verifiera)
-- Betänkanden: `dokumentlista/?doktyp=bet&rm=2026%2F27&utformat=json` – antar fälten `dok_id, rm, beteckning, organ, titel, notis, beslutsdag, dokument_url_html`.
+- Betänkanden: `dokumentlista/?doktyp=bet&rm=2026%2F27&utformat=json` – **verifierat i CI 2026-11-22**: fälten `dok_id, rm, beteckning, organ, titel, notis, summary, beslutsdag, debattdag, beslutad, klockslag, reservationer, dokument_url_html` finns. `beslutsdag` är `"0"` när den inte är satt. 109 betänkanden 2026/27, nästa beslutsdag 2026-11-25 (17 st).
 - Voteringar: `voteringlista/?rm=…&bet=…&utformat=json` – fälten `votering_id, punkt, parti, rost, avser` (dokumenterade för dataset). Första punkten i sakfrågan räknas.
 - Om fälten heter annat: justera `parseBetankanden`/`parseVotering` och fixturerna i `tests/hamta.test.mjs`.
 
@@ -47,7 +47,7 @@ Den incheckade filen är **exempeldata** (`"exempel": true`). Actions skriver ö
 - Dagens beslut valdes framför "Dagens motion" – motioner kommer i klump under allmänna motionstiden, beslut kommer löpande.
 
 ## Kvar att göra
-- Verifiera API-fält mot riktiga svar och sätt `beslutstid` från kalendern.
+- Verifiera voteringlista mot riktigt svar (första beslutsdagen 2026-11-25). Undersök om `klockslag` kan ge `beslutstid`. `reservationer` kan visa hur oenigt utskottet var.
 - Fråga i klartext och antal motioner (AI-sammanfattning i Action).
 - Egen rapportsida i appens färgprofil (som Svampkartan), historik/trend.
 - Cron-körningar publicerar utan `/rapport/` – behåll senaste rapport.

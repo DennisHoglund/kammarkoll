@@ -49,7 +49,7 @@ jobs:
       - name: Bygg _site
         run: |
           mkdir -p _site
-          cp index.html styles.css app.js data.js beslut.js kammarsal.js sw.js manifest.webmanifest _site/
+          cp index.html styles.css app.js data.js beslut.js kammaren.js kammarsal.js sw.js manifest.webmanifest _site/
           cp -r icons data _site/
           if [ -d playwright-report ]; then cp -r playwright-report _site/rapport; fi
 

@@ -64,5 +64,53 @@
     "tid": "16:00",
     "antal": 3
   },
-  "debattstart": "09:00"
+  "debattstart": "09:00",
+  "program": [
+    {
+      "datum": "2026-11-25",
+      "tid": "09:00",
+      "titel": "Debatt om förslag",
+      "typ": "arbetsplenum",
+      "arenden": [
+        {
+          "beteckning": "Exempel CU1",
+          "titel": "Hjälp med kontantinsatsen"
+        },
+        {
+          "beteckning": "Exempel KrU1",
+          "titel": "Fri entré på statliga museer"
+        }
+      ]
+    },
+    {
+      "datum": "2026-11-25",
+      "tid": "16:00",
+      "titel": "Beslut",
+      "typ": "votering",
+      "arenden": [
+        {
+          "beteckning": "Exempel TU1",
+          "titel": "Snabbladdning vid statliga rastplatser"
+        },
+        {
+          "beteckning": "Exempel UbU1",
+          "titel": "Mobilfri skoldag"
+        }
+      ]
+    },
+    {
+      "datum": "2026-11-26",
+      "tid": "14:00",
+      "titel": "Frågestund",
+      "typ": "frågestund",
+      "arenden": []
+    },
+    {
+      "datum": "2026-11-26",
+      "tid": "16:00",
+      "titel": "Beslut",
+      "typ": "votering",
+      "arenden": []
+    }
+  ]
 }

@@ -98,6 +98,35 @@ export function parseKalender(json, datum) {
   return { beslutstid: beslut ? klocka(beslut) : null, debattstart: debatt ? klocka(debatt) : null };
 }
 
+/** Kammarens program från en dag och `dagar` framåt, med ärendena som står i händelsens beskrivning. */
+export function parseProgram(json, fran, dagar = 14) {
+  const start = new Date(fran + 'T12:00:00Z');
+  const slut = new Date(start.getTime() + dagar * 864e5).toISOString().slice(0, 10).replaceAll('-', '');
+  const franKod = fran.replaceAll('-', '');
+  const ut = [];
+  for (const k of lista(json && json.kalenderlista && json.kalenderlista.kalender)) {
+    const ds = String(k.DTSTART || '');
+    const dkod = ds.slice(0, 8);
+    if (dkod < franKod || dkod > slut) continue;
+    const ingenTid = /ingen starttid/i.test(String(k.XRDDTSTARTSTATUS || ''));
+    const t = ds.slice(9, 13);
+    const beskr = [].concat(k.DESCRIPTION || []).join('\n').replace(/\\n/g, '\n');
+    const arenden = [];
+    for (const rad of beskr.split('\n')) {
+      const m = rad.trim().match(/^(\d{4}\/\d{2}:\S+)\s+(.+)$/);
+      if (m) arenden.push({ beteckning: m[1], titel: m[2].trim() });
+    }
+    ut.push({
+      datum: `${dkod.slice(0, 4)}-${dkod.slice(4, 6)}-${dkod.slice(6, 8)}`,
+      tid: !ingenTid && t.length === 4 ? `${t.slice(0, 2)}:${t.slice(2)}` : null,
+      titel: String(k.SUMMARY || '').trim(),
+      typ: (String(k.CATEGORIES || '').split(',')[1] || '').trim().toLowerCase(),
+      arenden,
+    });
+  }
+  return ut.sort((a, b) => (a.datum + (a.tid || '99')).localeCompare(b.datum + (b.tid || '99')));
+}
+
 /** Bygger appens format av dagens betänkanden + ev. voteringar. */
 export function bygg(datum, betankanden, voteringar, kalender = {}) {
   const idag = betankanden.filter(b => b.beslutsdag === datum);
@@ -127,6 +156,7 @@ export function bygg(datum, betankanden, voteringar, kalender = {}) {
     beslutstid: (kalender.idag && kalender.idag.beslutstid) || null,
     debattstart: (kalender.idag && kalender.idag.debattstart) || null,
     arenden, nasta,
+    program: kalender.program || [],
   };
 }
 
@@ -163,8 +193,10 @@ async function main() {
   let kalJson = null;
   try { kalJson = await hamtaJson(`${API}/kalender/?org=kamm&utformat=json&sz=500`); } catch (e) { console.warn('Kalender saknas:', e.message); }
   const framtid = [...new Set(betankanden.map(b => b.beslutsdag).filter(d => d && d > datum))].sort();
-  const kalender = kalJson ? { idag: parseKalender(kalJson, datum), nasta: framtid[0] ? parseKalender(kalJson, framtid[0]) : null } : {};
-  console.log('Kalender:', JSON.stringify(kalender));
+  const kalender = kalJson
+    ? { idag: parseKalender(kalJson, datum), nasta: framtid[0] ? parseKalender(kalJson, framtid[0]) : null, program: parseProgram(kalJson, datum) }
+    : {};
+  console.log('Kalender:', JSON.stringify({ ...kalender, program: (kalender.program || []).length + ' händelser' }));
 
   const ut = bygg(datum, betankanden, voteringar, kalender);
   await mkdir('data', { recursive: true });

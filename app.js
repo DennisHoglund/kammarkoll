@@ -24,9 +24,8 @@
     } else if (f === 'mer') {
       mer();
     } else {
-      const namn = { kammaren: 'Kammaren', kalender: 'Kalender' }[f];
-      vy.innerHTML = `<header class="rubrik"><div><p class="overrad">Kommer snart</p><h1>${namn}</h1></div></header>
-        <section class="tom glas"><strong>Under bygge</strong><span>Den här fliken kommer i ett senare steg.</span></section>`;
+      if (!data) { vy.innerHTML = '<p class="liten">Laddar…</p>'; return; }
+      KKKammaren[f](vy, data);
     }
   }
 
@@ -63,7 +62,7 @@
       data = res.data; offline = res.offline;
     } catch (e) {
       data = null;
-      if (flik === 'beslut') {
+      if (flik !== 'mer') {
         vy.innerHTML = '<section class="tom glas"><strong>Kunde inte hämta dagens beslut</strong><span>Kontrollera nätet och försök igen.</span></section>';
         return;
       }
@@ -76,6 +75,8 @@
   visa(flik);
   ladda();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) ladda(); });
+  // "Pågår nu" följer klockan.
+  setInterval(() => { if (!document.hidden && flik === 'kammaren' && data) KKKammaren.kammaren(vy, data); }, 60000);
 
   if ('serviceWorker' in navigator) {
     let laddarOm = false;

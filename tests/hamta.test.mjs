@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { idagStockholm, riksmote, parseBetankanden, parseVotering, parseKalender, forstaStycke, utskottetsForslag, bygg } from '../scripts/hamta.mjs';
+import { idagStockholm, riksmote, parseBetankanden, parseVotering, parseKalender, parseProgram, forstaStycke, utskottetsForslag, bygg } from '../scripts/hamta.mjs';
 
 test('datum i svensk tid', () => {
   assert.equal(idagStockholm(new Date('2026-11-24T23:30:00Z')), '2026-11-25');
@@ -105,4 +105,19 @@ test('första stycket kortas vid meningsslut', () => {
 test('utskottets förslag tolkas ur notisen', () => {
   assert.equal(utskottetsForslag('<p>Skatteutskottet föreslår att riksdagen säger ja till regeringens förslag.</p>'), 'ja');
   assert.equal(utskottetsForslag('Skrivelsen har behandlats'), null);
+});
+
+test('program: 14 dagar framåt, tider, ärenden ur beskrivningen', () => {
+  const kal = { kalenderlista: { kalender: [
+    { DTSTART: '20261125T160000', SUMMARY: 'Beslut', CATEGORIES: 'kammaren,votering,Debatt och beslut,kamm',
+      DESCRIPTION: ['', '\\n2026/27:CU2 Stärkt trygghet i bostadsrätter\\n\\n2026/27:CU3 Bygglov\\n'] },
+    { DTSTART: '20261125T090000', SUMMARY: 'Debatt om förslag', CATEGORIES: 'kammaren,arbetsplenum,kamm', DESCRIPTION: ['', ''] },
+    { DTSTART: '20261127T090000', SUMMARY: 'Avslutning', CATEGORIES: 'kammaren,avslutning,kamm', XRDDTSTARTSTATUS: 'Ingen starttid' },
+    { DTSTART: '20261124T090000', SUMMARY: 'Igår', CATEGORIES: 'kammaren,x' },
+    { DTSTART: '20270101T090000', SUMMARY: 'För långt bort', CATEGORIES: 'kammaren,x' },
+  ] } };
+  const p = parseProgram(kal, '2026-11-25');
+  assert.deepEqual(p.map(h => `${h.datum} ${h.tid} ${h.titel}`), ['2026-11-25 09:00 Debatt om förslag', '2026-11-25 16:00 Beslut', '2026-11-27 null Avslutning']);
+  assert.equal(p[1].typ, 'votering');
+  assert.deepEqual(p[1].arenden, [{ beteckning: '2026/27:CU2', titel: 'Stärkt trygghet i bostadsrätter' }, { beteckning: '2026/27:CU3', titel: 'Bygglov' }]);
 });

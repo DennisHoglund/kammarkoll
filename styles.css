@@ -149,7 +149,7 @@ h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
 .rosta button:active { transform: scale(0.97); }
 
 /* Listor */
-.lista { border-radius: 24px; padding: 2px 0; }
+.lista { border-radius: 24px; padding: 2px 0; overflow: hidden; }
 .lista > * + * { border-top: 1px solid var(--linje); }
 .rad-arende {
   width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer;
@@ -217,3 +217,31 @@ h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
   .kort, .resultat, .ring-kort { animation: in 0.28s ease-out; }
   @keyframes in { from { opacity: 0; transform: translateY(8px) scale(0.99); } to { opacity: 1; transform: none; } }
 }
+
+/* Kammaren & Kalender */
+.prog-rad { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 56px; }
+.prog-rad .text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.prog-rad .titel { font-size: 15px; font-weight: 600; }
+.prog-rad .under { font-size: 12px; color: var(--text-3); }
+.prog-rad .chip { height: 26px; padding: 0 10px; font-size: 12px; flex-shrink: 0; }
+.prog-rad.nu { background: var(--nej-ljus); }
+.prog-tid { width: 46px; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.nu-kort { border-radius: 28px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.nu-kort h2 { font-size: 24px; line-height: 29px; font-weight: 800; }
+.nu-topp { display: flex; justify-content: space-between; align-items: center; }
+.nu-topp .under { font-size: 13px; color: var(--text-3); font-weight: 500; }
+.live { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--nej-ljus); color: var(--nej); font-size: 12px; font-weight: 800; letter-spacing: 0.06em; }
+.live i { width: 8px; height: 8px; border-radius: 4px; background: var(--nej); box-shadow: 0 0 0 4px var(--nej-ljus); }
+@media (prefers-reduced-motion: no-preference) { .live i { animation: puls 1.6s ease-in-out infinite; } @keyframes puls { 50% { opacity: 0.35; } } }
+.nu-lista { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; line-height: 20px; color: var(--text-2); }
+.nu-lista .fler { list-style: none; margin-left: -18px; color: var(--text-3); font-weight: 600; }
+.knapp { height: 48px; border-radius: 24px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 16px; font-weight: 600; }
+.dagar { border-radius: 24px; padding: 8px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+.dagar::-webkit-scrollbar { display: none; }
+.dag { flex: 0 0 58px; height: 72px; border: 0; border-radius: 18px; background: transparent; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.dag span { font-size: 12px; font-weight: 600; }
+.dag b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.dag i { width: 5px; height: 5px; border-radius: 3px; }
+.dag i.prick { background: var(--nej); }
+.dag.vald { background: var(--accent); color: #fff; }
+.dag.vald i.prick { background: #fff; }

@@ -1,0 +1,80 @@
+name: Bygg, testa och publicera
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Var 30:e minut vardagar 06–20 svensk tid (UTC här, ungefärligt).
+    - cron: '*/30 5-19 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  bygg:
+    runs-on: ubuntu-latest
+    outputs:
+      testfel: ${{ steps.test.outcome == 'failure' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Enhetstester för datapipelinen
+        run: npm run test:data
+
+      - name: Installera webbläsare
+        if: github.event_name != 'schedule'
+        run: npx playwright install --with-deps webkit chromium
+
+      - name: Playwright
+        id: test
+        if: github.event_name != 'schedule'
+        continue-on-error: true
+        run: npx playwright test
+
+      - name: Hämta dagens beslut från riksdagen
+        run: node scripts/hamta.mjs
+
+      - name: Bygg _site
+        run: |
+          mkdir -p _site
+          cp index.html styles.css app.js data.js beslut.js kammarsal.js sw.js manifest.webmanifest _site/
+          cp -r icons data _site/
+          if [ -d playwright-report ]; then cp -r playwright-report _site/rapport; fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Sammanfattning
+        if: always()
+        run: |
+          echo "### Kammarkoll" >> $GITHUB_STEP_SUMMARY
+          echo "- Data: $(node -e "const d=require('./data/idag.json');console.log(d.datum+', '+d.arenden.length+' ärenden'+(d.exempel?' (exempel)':''))")" >> $GITHUB_STEP_SUMMARY
+          echo "- Tester: ${{ steps.test.outcome }}" >> $GITHUB_STEP_SUMMARY
+
+  publicera:
+    needs: bygg
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+      - name: Röd commit om tester föll
+        if: needs.bygg.outputs.testfel == 'true'
+        run: |
+          echo "::error::Playwright-tester föll – se rapporten på /rapport/"
+          exit 1

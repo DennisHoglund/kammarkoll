@@ -1,0 +1,91 @@
+// @ts-check
+const { test, expect } = require('@playwright/test');
+
+const DAG = {
+  genererad: '2026-11-25T06:00:00+01:00',
+  datum: '2026-11-25',
+  exempel: false,
+  beslutstid: '16:00',
+  arenden: [
+    { id: 'a1', beteckning: '2026/27:TU1', utskott: 'TU', titel: 'Laddning vid rastplatser', fraga: 'Ska staten bygga laddning?', utskottSager: 'nej', motioner: 14, status: 'beslutat',
+      resultat: { utfall: 'nej', ja: 150, nej: 175, avstar: 0, franvarande: 24, partier: [{ parti: 'P1', ja: 100, nej: 0, avstar: 0, franvarande: 10 }, { parti: 'P2', ja: 50, nej: 175, avstar: 0, franvarande: 14 }] } },
+    { id: 'a2', beteckning: '2026/27:UbU1', utskott: 'UbU', titel: 'Mobilfri skoldag', fraga: 'Ska mobiler samlas in?', status: 'beslutat',
+      resultat: { utfall: 'ja', ja: 175, nej: 150, avstar: 0, franvarande: 24 } },
+    { id: 'a3', beteckning: '2026/27:CU1', utskott: 'CU', titel: 'Kontantinsats', fraga: 'Ska staten gå i borgen?', status: 'kommande' },
+  ],
+  nasta: { datum: '2026-11-26', tid: '16:00', antal: 3 },
+};
+
+async function oppna(page, data = DAG) {
+  await page.route('**/data/idag.json', r => r.fulfill({ json: data }));
+  await page.goto('/');
+}
+
+test('visar första ärendet med fråga och röstknappar', async ({ page }) => {
+  await oppna(page);
+  const kort = page.getByTestId('arendekort');
+  await expect(kort).toContainText('Laddning vid rastplatser');
+  await expect(kort).toContainText('Trafikutskottet');
+  await expect(kort).toContainText('Ska staten bygga laddning?');
+  await expect(page.getByTestId('position')).toHaveText('1 av 3');
+  await expect(page.getByRole('button', { name: 'Ja' })).toBeVisible();
+});
+
+test('röst på beslutat ärende visar utfall, plenisal och partier', async ({ page }) => {
+  await oppna(page);
+  await page.getByRole('button', { name: 'Ja' }).click();
+  const res = page.getByTestId('resultat');
+  await expect(res).toContainText('RIKSDAGEN SA NEJ');
+  await expect(res).toContainText('150–175');
+  await expect(res.locator('circle')).toHaveCount(349);
+  await expect(page.getByText('Du röstade ja – mot riksdagen')).toBeVisible();
+  await expect(page.getByText('Så röstade partierna')).toBeVisible();
+  await page.getByRole('button', { name: 'Tillbaka' }).click();
+  await expect(page.getByTestId('position')).toHaveText('2 av 3');
+});
+
+test('efter alla röster visas din dag med rätt räkning', async ({ page }) => {
+  await oppna(page);
+  await page.getByRole('button', { name: 'Ja' }).click();          // a1: ja mot nej
+  await page.getByRole('button', { name: 'Tillbaka' }).click();
+  await page.getByRole('button', { name: 'Ja' }).click();          // a2: ja som ja
+  await page.getByRole('button', { name: 'Tillbaka' }).click();
+  await page.getByRole('button', { name: 'Nej' }).click();         // a3: kommande
+  const sum = page.getByTestId('summering');
+  await expect(sum).toContainText('Du röstade som riksdagen i 1 av 2');
+  await expect(page.getByText('Riksdagen: beslut 16:00')).toBeVisible();
+});
+
+test('röster sparas över omladdning', async ({ page }) => {
+  await oppna(page);
+  await page.getByRole('button', { name: 'Avstår' }).click();
+  await page.getByRole('button', { name: 'Tillbaka' }).click();
+  await page.reload();
+  await expect(page.getByTestId('position')).toHaveText('2 av 3');
+});
+
+test('dag utan beslut visar tomt läge och nästa beslut', async ({ page }) => {
+  await oppna(page, { ...DAG, arenden: [] });
+  await expect(page.getByTestId('tom-dag')).toContainText('Inga beslut idag');
+  await expect(page.getByText('torsdag 26 nov 16:00 · 3 ärenden')).toBeVisible();
+});
+
+test('temaval byter till mörkt', async ({ page }) => {
+  await oppna(page);
+  await page.getByRole('button', { name: 'Mer' }).click();
+  await page.getByRole('button', { name: 'Mörkt' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'mörkt');
+});
+
+test('fel vid hämtning ger begripligt meddelande', async ({ page }) => {
+  await page.route('**/data/idag.json', r => r.fulfill({ status: 500, body: 'fel' }));
+  await page.goto('/');
+  await expect(page.getByText('Kunde inte hämta dagens beslut')).toBeVisible();
+});
+
+test('skärmdumpar', async ({ page }, info) => {
+  await oppna(page);
+  await page.screenshot({ path: `test-results/bilder/${info.project.name}-1-kort.png` });
+  await page.getByRole('button', { name: 'Ja' }).click();
+  await page.screenshot({ path: `test-results/bilder/${info.project.name}-2-resultat.png`, fullPage: true });
+});

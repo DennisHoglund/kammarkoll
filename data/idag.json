@@ -1,0 +1,51 @@
+{
+  "genererad": "2026-11-25T06:00:00+01:00",
+  "datum": "2026-11-25",
+  "exempel": true,
+  "beslutstid": "16:00",
+  "arenden": [
+    {
+      "id": "exempel-1",
+      "beteckning": "Exempel TU1",
+      "utskott": "TU",
+      "titel": "Snabbladdning vid statliga rastplatser",
+      "fraga": "Ska staten ansvara för att det finns snabbladdning för elbil vid rastplatser längs de stora vägarna?",
+      "utskottSager": "nej",
+      "motioner": 14,
+      "status": "beslutat",
+      "resultat": { "utfall": "nej", "ja": 150, "nej": 175, "avstar": 0, "franvarande": 24 }
+    },
+    {
+      "id": "exempel-2",
+      "beteckning": "Exempel UbU1",
+      "utskott": "UbU",
+      "titel": "Mobilfri skoldag",
+      "fraga": "Ska mobiler samlas in vid skoldagens början i alla årskurser, inte bara under lektionerna?",
+      "utskottSager": "ja",
+      "motioner": 9,
+      "status": "beslutat",
+      "resultat": { "utfall": "ja", "ja": 175, "nej": 150, "avstar": 0, "franvarande": 24 }
+    },
+    {
+      "id": "exempel-3",
+      "beteckning": "Exempel CU1",
+      "utskott": "CU",
+      "titel": "Hjälp med kontantinsatsen",
+      "fraga": "Ska staten gå i borgen för en del av kontantinsatsen när man köper sin första bostad?",
+      "utskottSager": "nej",
+      "motioner": 21,
+      "status": "kommande"
+    },
+    {
+      "id": "exempel-4",
+      "beteckning": "Exempel KrU1",
+      "utskott": "KrU",
+      "titel": "Fri entré på statliga museer",
+      "fraga": "Ska det vara gratis att besöka de statliga museerna för alla, året runt?",
+      "utskottSager": "nej",
+      "motioner": 6,
+      "status": "kommande"
+    }
+  ],
+  "nasta": { "datum": "2026-11-26", "tid": "16:00", "antal": 3 }
+}

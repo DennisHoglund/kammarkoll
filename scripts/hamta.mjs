@@ -95,7 +95,11 @@ async function main() {
   const rmQ = encodeURIComponent(rm);
   const dokUrl = `${API}/dokumentlista/?doktyp=bet&rm=${rmQ}&utformat=json&sz=400&sort=datum&sortorder=desc`;
   console.log('Hämtar', dokUrl);
-  const betankanden = parseBetankanden(await hamtaJson(dokUrl));
+  const dokJson = await hamtaJson(dokUrl);
+  const forsta = lista(dokJson && dokJson.dokumentlista && dokJson.dokumentlista.dokument)[0];
+  if (forsta) console.log('Fält i första betänkandet:', Object.keys(forsta).join(', '));
+  const betankanden = parseBetankanden(dokJson);
+  console.log('Med beslutsdag:', betankanden.filter(b => b.beslutsdag).length, '– exempel:', betankanden.slice(0, 3).map(b => `${b.beteckning}=${b.beslutsdag || '?'}`).join(' '));
   console.log(`${betankanden.length} betänkanden, ${betankanden.filter(b => b.beslutsdag === datum).length} med beslut ${datum}`);
 
   const voteringar = {};
@@ -112,7 +116,7 @@ async function main() {
   const ut = bygg(datum, betankanden, voteringar);
   await mkdir('data', { recursive: true });
   await writeFile('data/idag.json', JSON.stringify(ut, null, 2));
-  console.log(`Skrev data/idag.json: ${ut.arenden.length} ärenden, ${Object.keys(voteringar).length} beslutade`);
+  console.log(`Skrev data/idag.json: ${ut.arenden.length} ärenden, ${Object.keys(voteringar).length} beslutade, nästa: ${JSON.stringify(ut.nasta)}`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

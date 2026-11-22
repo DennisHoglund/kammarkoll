@@ -41,3 +41,16 @@ const v = await get(`${API}/voteringlista/?rm=2025%2F26&bet=SkU8&utformat=json&s
 if (v) console.log(kort(JSON.stringify(v), 2000));
 const v2 = await get(`${API}/voteringlista/?rm=2025%2F26&utformat=json&sz=3`);
 if (v2) console.log(kort(JSON.stringify(v2), 2000));
+
+// Kalender del 2: filtrera själv på datum
+const kal = await get(`${API}/kalender/?org=kamm&utformat=json&sz=500`);
+const alla = [].concat(kal?.kalenderlista?.kalender || []);
+const datumKod = dag.replaceAll('-', '');
+console.log(`\nKalender totalt ${alla.length}, DTSTART-intervall ${alla.map(k => k.DTSTART).sort()[0]} – ${alla.map(k => k.DTSTART).sort().at(-1)}`);
+for (const k of alla.filter(k => String(k.DTSTART).startsWith(datumKod)))
+  console.log(`  ${k.DTSTART} ${k.SUMMARY} | ${k.CATEGORIES} | ${k.XRDDTSTARTSTATUS} | ${k.XRDDOKID} | ${kort(JSON.stringify(k.DESCRIPTION), 120)}`);
+for (const u of [`${API}/kalender/?org=kamm&datum=${dag}&utformat=json`, `${API}/kalender/?org=kamm&fdatum=${dag}&tdatum=${dag}&utformat=json`, `${API}/kalender/?org=kamm&from=${dag}&tom=${dag}&utformat=json&sz=500&sort=c`]) {
+  const r = await get(u);
+  const l = [].concat(r?.kalenderlista?.kalender || []);
+  console.log(`  ${l.length} poster, första ${l[0]?.DTSTART} ${l[0]?.SUMMARY}`);
+}

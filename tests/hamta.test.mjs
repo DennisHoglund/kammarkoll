@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { idagStockholm, riksmote, parseBetankanden, parseVotering, parseKalender, parseProgram, forstaStycke, utskottetsForslag, bygg } from '../scripts/hamta.mjs';
+import { idagStockholm, riksmote, parseBetankanden, parseVotering, parseKalender, parseProgram, parseForedragningslista, forstaStycke, utskottetsForslag, bygg } from '../scripts/hamta.mjs';
 
 test('datum i svensk tid', () => {
   assert.equal(idagStockholm(new Date('2026-11-24T23:30:00Z')), '2026-11-25');
@@ -120,4 +120,28 @@ test('program: 14 dagar framåt, tider, ärenden ur beskrivningen', () => {
   assert.deepEqual(p.map(h => `${h.datum} ${h.tid} ${h.titel}`), ['2026-11-25 09:00 Debatt om förslag', '2026-11-25 16:00 Beslut', '2026-11-27 null Avslutning']);
   assert.equal(p[1].typ, 'votering');
   assert.deepEqual(p[1].arenden, [{ beteckning: '2026/27:CU2', titel: 'Stärkt trygghet i bostadsrätter' }, { beteckning: '2026/27:CU3', titel: 'Bygglov' }]);
+});
+
+test('föredragningslista: sektioner, grupper, beteckning och reservationer', () => {
+  const td = (k, t) => `<td style="x"><p class="${k}"><span>${t}</span></p></td>`;
+  const tr = (...c) => `<tr style="page-break-inside:avoid">${c.join('')}</tr>`;
+  const html = [
+    tr(td('Plenum', 'Kl.'), td('Plenum', '11.00'), td('', '&#xa0;'), td('Plenum', 'Bordläggningsplenum')),
+    tr(td('', '&#xa0;'), td('HuvudrubrikEnsam', 'Justering av protokoll'), td('', '&#xa0;')),
+    tr(td('FlistaNrText', '1'), td('', 'Justering av protokoll från sammanträdet'), td('', '&#xa0;')),
+    tr(td('', '&#xa0;'), td('HuvudrubrikEnsam', 'Ärenden för bordläggning'), td('HuvudrubrikKolumn3', 'Reservationer')),
+    tr(td('', ''), td('renderubrik', 'Civilutskottets betänkanden'), td('', '')),
+    tr(td('FlistaNrText', '6'), td('', 'Bet. 2026/27:CU2 Stärkt trygghet i bostadsrätter'), td('', '2 res. (P1, P2)')),
+    tr(td('FlistaNrText', '7'), td('', 'Bet. 2026/27:CU3 Bygglov &amp; regler'), td('', '&#xa0;')),
+    tr(td('', ''), td('renderubrik', 'Faktapromemoria'), td('', '')),
+    tr(td('FlistaNrText', '8'), td('', '2026/27:FPM15 Vision för fiske'), td('', 'MJU')),
+    tr(td('IngenText', '___')),
+  ].join('');
+  const s = parseForedragningslista(html);
+  assert.equal(s.length, 2);
+  assert.equal(s[0].rubrik, 'Justering av protokoll');
+  assert.deepEqual(s[1].punkter[0], { nr: 6, text: 'Stärkt trygghet i bostadsrätter', beteckning: '2026/27:CU2', info: '2 res. (P1, P2)', grupp: 'Civilutskottets betänkanden' });
+  assert.equal(s[1].punkter[1].text, 'Bygglov & regler');
+  assert.equal(s[1].punkter[1].info, undefined);
+  assert.equal(s[1].punkter[2].beteckning, '2026/27:FPM15');
 });

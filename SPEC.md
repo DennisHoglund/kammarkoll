@@ -25,6 +25,8 @@ En PWA för iPhone som gör riksdagens arbete begripligt och lite roligt, byggd 
 
 ## Funktioner – Kammaren och Kalender
 - **Kammaren**: dagens program från kalendern. Kortet överst visar det som pågår (startat, nästa ej börjat, max 4 h) med "PÅGÅR NU" och länk till webb-tv, annars nästa händelse. Uppdateras varje minut. Tom dag → nästa sammanträde.
+- Varje programrad fälls ut med en kort förklaring av sammanträdestypen (bordläggning, beslut, debatt, frågestund …) och dess ärenden.
+- **Dagordning**: kammarens föredragningslista för dagen (kalenderhändelsens `XRDDOKID` → `dokumentstatus` → referens `f-lista` → `dokument/<id>.html`), uppdelad i sektioner med numrerade punkter, beteckning och reservationer. Hämtas för dagar inom en vecka.
 - **Kalender**: dagväljare för de kommande 14 dagarna med kammarhändelser, orange prick = beslutsdag, dagens program och ärenden.
 
 ## Dataformat `data/idag.json`
@@ -34,7 +36,8 @@ En PWA för iPhone som gör riksdagens arbete begripligt och lite roligt, byggd 
     "status": "kommande" | "beslutat", "url",
     "resultat"?: { "utfall": "ja"|"nej", "ja", "nej", "avstar", "franvarande", "partier": [{ "parti", "ja", "nej", "avstar", "franvarande" }] } }],
   "nasta": { "datum", "tid"?, "antal" } | null,
-  "program": [{ "datum", "tid" | null, "titel", "typ": "votering"|"arbetsplenum"|…, "arenden": [{ "beteckning", "titel" }] }] }
+  "program": [{ "datum", "tid" | null, "titel", "typ": "votering"|"arbetsplenum"|…, "arenden": [{ "beteckning", "titel" }], "dokid"? }],
+  "dagordning": { "ÅÅÅÅ-MM-DD": { "id", "titel", "sektioner": [{ "rubrik", "punkter": [{ "nr", "text", "beteckning"?, "info"?, "grupp"? }] }] } } }
 ```
 Den incheckade filen är **exempeldata** (`"exempel": true`). Actions skriver över den vid deploy.
 

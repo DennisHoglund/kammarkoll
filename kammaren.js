@@ -25,6 +25,7 @@
   function typ(h) {
     if (h.typ === 'votering' || /^beslut/i.test(h.titel)) return { namn: 'Beslut', klass: 'orange' };
     if (/fråge/i.test(h.titel) || /fråge/.test(h.typ)) return { namn: 'Frågor', klass: 'gra' };
+    if (/bordläggning/i.test(h.titel + ' ' + h.typ)) return { namn: 'Anmälan', klass: 'gra' };
     if (/debatt|plenum/i.test(h.titel + ' ' + h.typ)) return { namn: 'Debatt', klass: 'bla' };
     return { namn: 'Övrigt', klass: 'gra' };
   }
@@ -42,14 +43,48 @@
     return null;
   }
 
+  /** Kort förklaring av vad som händer vid en viss typ av sammanträde. */
+  function forklaring(h) {
+    const x = (h.titel + ' ' + h.typ).toLowerCase();
+    if (/bordläggning/.test(x)) return 'Nya ärenden anmäls och "läggs på bordet" – kammaren får dem presenterade inför en senare debatt och ett senare beslut. Ingen debatt och inga beslut i sak, oftast bara några minuter.';
+    if (h.typ === 'votering' || /^beslut/.test(x)) return 'Riksdagen röstar om de ärenden som debatterats. Är ingen emot utskottets förslag avgörs ärendet direkt utan votering.';
+    if (/partiledardebatt/.test(x)) return 'Partiledarna debatterar fritt valda ämnen med varandra.';
+    if (/interpellation/.test(x)) return 'En ledamot debatterar med ett statsråd utifrån en skriftlig fråga – en interpellation.';
+    if (/frågestund/.test(x)) return 'Statsråd svarar direkt på ledamöternas frågor.';
+    if (/debatt|plenum/.test(x)) return 'Ledamöterna debatterar utskottens förslag (betänkanden). Beslut fattas vid ett senare beslutstillfälle.';
+    if (/avslutning/.test(x)) return 'Riksmötet avslutas.';
+    return '';
+  }
+
   function rad(h, markerad) {
     const t = typ(h);
     const antal = h.arenden && h.arenden.length;
-    return `<div class="prog-rad${markerad ? ' nu' : ''}">
-      <span class="prog-tid">${esc(h.tid || '–')}</span>
+    const forkl = forklaring(h);
+    const lista = antal ? `<ul class="nu-lista">${h.arenden.map(a => `<li>${esc(a.titel)} <span class="bet">${esc(a.beteckning)}</span></li>`).join('')}</ul>` : '';
+    const huvud = `<span class="prog-tid">${esc(h.tid || '–')}</span>
       <span class="text"><span class="titel">${esc(h.titel)}</span>${antal ? `<span class="under">${antal} ärende${antal === 1 ? '' : 'n'}</span>` : ''}</span>
-      <span class="chip ${t.klass}">${t.namn}</span>
-    </div>`;
+      <span class="chip ${t.klass}">${t.namn}</span>`;
+    if (!forkl && !lista) return `<div class="prog-rad${markerad ? ' nu' : ''}">${huvud}</div>`;
+    return `<details class="prog-detalj"><summary class="prog-rad${markerad ? ' nu' : ''}">${huvud}${ikon('pil', 'width:16px;height:16px;color:var(--text-3)')}</summary>
+      <div class="prog-mer">${forkl ? `<p>${esc(forkl)}</p>` : ''}${lista}</div></details>`;
+  }
+
+  function dagordning(data, datum) {
+    const d = data && data.dagordning && data.dagordning[datum];
+    if (!d || !d.sektioner || !d.sektioner.length) return '';
+    const sektioner = d.sektioner.map(s => {
+      let grupp = null;
+      const punkter = s.punkter.map(p => {
+        const g = p.grupp && p.grupp !== grupp ? `<li class="grupp">${esc(p.grupp)}</li>` : '';
+        grupp = p.grupp || grupp;
+        const under = [p.beteckning, p.info].filter(Boolean).map(esc).join(' · ');
+        return `${g}<li><span class="nr">${p.nr || ''}</span><span class="text"><span>${esc(p.text)}</span>${under ? `<span class="under">${under}</span>` : ''}</span></li>`;
+      }).join('');
+      return `<details class="prog-detalj"><summary class="prog-rad"><span class="text"><span class="titel">${esc(s.rubrik)}</span></span>
+        <span class="antal">${s.punkter.length}</span>${ikon('pil', 'width:16px;height:16px;color:var(--text-3)')}</summary>
+        <ol class="punkter">${punkter}</ol></details>`;
+    }).join('');
+    return `<h2>Dagordning</h2><div class="lista glas" data-testid="dagordning">${sektioner}</div>`;
   }
 
   function huvudkort(h, pagar) {
@@ -78,7 +113,8 @@
       const fokus = pagar || nasta;
       innehall = `${fokus ? huvudkort(fokus, fokus === pagar) : ''}
         <h2>Idag</h2>
-        <div class="lista glas" data-testid="idag">${idag.map(h => rad(h, h === pagar)).join('')}</div>`;
+        <div class="lista glas" data-testid="idag">${idag.map(h => rad(h, h === pagar)).join('')}</div>
+        ${dagordning(data, nu.datum)}`;
     } else {
       const kommande = program.find(h => h.datum > nu.datum);
       const dag = kommande ? program.filter(h => h.datum === kommande.datum) : [];
@@ -114,7 +150,8 @@
       <div class="dagar glas" data-testid="dagar">${chips}</div>
       <h2>${esc(datumText(valdDag).replace(/^./, c => c.toUpperCase()))}</h2>
       <div class="lista glas" data-testid="dagens-program">${dagens.map(h => rad(h)).join('')}</div>
-      ${arenden.length ? `<h2>Ärenden <span style="color:var(--text-3);font-weight:600">${arenden.length}</span></h2>
+      ${dagordning(data, valdDag)}
+      ${!(data.dagordning && data.dagordning[valdDag]) && arenden.length ? `<h2>Ärenden <span style="color:var(--text-3);font-weight:600">${arenden.length}</span></h2>
         <div class="lista glas">${arenden.map(a => `<div class="prog-rad"><span class="text"><span class="titel">${esc(a.titel)}</span><span class="under">${esc(a.beteckning)}</span></span></div>`).join('')}</div>` : ''}
       <p class="liten">Orange prick = beslut den dagen</p>`;
     el.querySelectorAll('[data-dag]').forEach(b => b.addEventListener('click', () => { valdDag = b.dataset.dag; kalender(el, data); }));

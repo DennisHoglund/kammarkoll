@@ -245,3 +245,18 @@ h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
 .dag i.prick { background: var(--nej); }
 .dag.vald { background: var(--accent); color: #fff; }
 .dag.vald i.prick { background: #fff; }
+
+.prog-detalj > summary { list-style: none; cursor: pointer; }
+.prog-detalj > summary::-webkit-details-marker { display: none; }
+.prog-detalj > summary > .ikon:last-child { transition: transform 0.2s; flex-shrink: 0; }
+.prog-detalj[open] > summary > .ikon:last-child { transform: rotate(90deg); }
+.prog-mer { padding: 0 16px 14px 74px; display: flex; flex-direction: column; gap: 10px; }
+.prog-mer p { margin: 0; font-size: 14px; line-height: 20px; color: var(--text-2); }
+.bet { color: var(--text-3); font-size: 12px; white-space: nowrap; }
+.antal { font-size: 13px; font-weight: 700; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.punkter { list-style: none; margin: 0; padding: 0 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+.punkter li { display: flex; gap: 10px; font-size: 14px; line-height: 20px; }
+.punkter li.grupp { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); padding-top: 4px; }
+.punkter .nr { width: 22px; flex-shrink: 0; text-align: right; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.punkter .text { display: flex; flex-direction: column; gap: 1px; }
+.punkter .under { font-size: 12px; color: var(--text-3); }

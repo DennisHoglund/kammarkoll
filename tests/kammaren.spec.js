@@ -9,7 +9,14 @@ const PROGRAM = [
   { datum: '2026-11-26', tid: '14:00', titel: 'Frågestund', typ: 'frågestund', arenden: [] },
   { datum: '2026-12-01', tid: null, titel: 'Bordläggning', typ: 'bordläggning', arenden: [] },
 ];
-const DATA = { genererad: '2026-11-25T06:00:00+01:00', datum: '2026-11-25', exempel: false, beslutstid: '16:00', arenden: [], nasta: null, program: PROGRAM };
+PROGRAM.splice(2, 0, { datum: '2026-11-26', tid: '11:00', titel: 'Bordläggning', typ: 'bordläggningsplenum', arenden: [] });
+const DAGORDNING = { '2026-11-26': { id: 'X1', titel: 'föredragningslista', sektioner: [
+  { rubrik: 'Justering av protokoll', punkter: [{ nr: 1, text: 'Justering av protokoll från sammanträdet' }] },
+  { rubrik: 'Ärenden för bordläggning', punkter: [
+    { nr: 6, text: 'Stärkt trygghet i bostadsrätter', beteckning: '2026/27:CU2', info: '2 res. (P1, P2)', grupp: 'Civilutskottets betänkanden' },
+    { nr: 7, text: 'Bygglov', beteckning: '2026/27:CU3', grupp: 'Civilutskottets betänkanden' }] },
+] } };
+const DATA = { genererad: '2026-11-25T06:00:00+01:00', datum: '2026-11-25', exempel: false, beslutstid: '16:00', arenden: [], nasta: null, program: PROGRAM, dagordning: DAGORDNING };
 
 async function oppna(page, tid, flik) {
   await page.clock.setFixedTime(new Date(tid));
@@ -47,6 +54,18 @@ test('kalender: dagväljare byter program och visar ärenden', async ({ page }) 
   await page.getByRole('button', { name: 'torsdag 26 nov' }).click();
   await expect(page.getByTestId('dagens-program')).toContainText('Frågestund');
   await expect(page.getByRole('button', { name: 'torsdag 26 nov' })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('bordläggning: raden fälls ut med förklaring och dagordningen visas', async ({ page }) => {
+  await oppna(page, '2026-11-26T10:00:00+01:00', 'Kammaren');
+  const rad = page.getByTestId('idag').locator('summary', { hasText: 'Bordläggning' });
+  await rad.click();
+  await expect(page.getByText('läggs på bordet')).toBeVisible();
+  const dag = page.getByTestId('dagordning');
+  await dag.locator('summary', { hasText: 'Ärenden för bordläggning' }).click();
+  await expect(dag).toContainText('Civilutskottets betänkanden');
+  await expect(dag).toContainText('Stärkt trygghet i bostadsrätter');
+  await expect(dag).toContainText('2026/27:CU2 · 2 res. (P1, P2)');
 });
 
 test('skärmdump kammaren', async ({ page }, info) => {

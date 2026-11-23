@@ -122,9 +122,40 @@ export function parseProgram(json, fran, dagar = 14) {
       titel: String(k.SUMMARY || '').trim(),
       typ: (String(k.CATEGORIES || '').split(',')[1] || '').trim().toLowerCase(),
       arenden,
+      ...(k.XRDDOKID ? { dokid: String(k.XRDDOKID) } : {}),
     });
   }
   return ut.sort((a, b) => (a.datum + (a.tid || '99')).localeCompare(b.datum + (b.tid || '99')));
+}
+
+const avkoda = s => String(s || '').replace(/<[^>]+>/g, ' ').replace(/&#xa0;|&nbsp;/g, ' ').replace(/&amp;/g, '&')
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, ' ').trim();
+
+/** Kammarens föredragningslista (HTML) → sektioner med numrerade punkter. */
+export function parseForedragningslista(html) {
+  const sektioner = [];
+  let aktuell = null, grupp = null;
+  for (const rad of String(html || '').match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || []) {
+    const celler = (rad.match(/<td[^>]*>[\s\S]*?<\/td>/g) || []).map(avkoda);
+    if (/class="HuvudrubrikEnsam"/.test(rad)) {
+      aktuell = { rubrik: celler[1] || '', punkter: [] };
+      grupp = null;
+      sektioner.push(aktuell);
+    } else if (/class="renderubrik"/.test(rad)) {
+      grupp = celler[1] || null;
+    } else if (/class="FlistaNrText"/.test(rad) && aktuell) {
+      const text = celler[1] || '';
+      const m = text.match(/^(?:Bet\.|Prop\.|Skr\.|Mot\.|Ip\.|Fr\.)?\s*(\d{4}\/\d{2}:[A-Za-zÅÄÖåäö]*\d+)\s+(.*)$/);
+      aktuell.punkter.push({
+        nr: Number(celler[0]) || null,
+        text: m ? m[2] : text,
+        ...(m ? { beteckning: m[1] } : {}),
+        ...(celler[2] ? { info: celler[2] } : {}),
+        ...(grupp ? { grupp } : {}),
+      });
+    }
+  }
+  return sektioner.filter(s => s.punkter.length);
 }
 
 /** Bygger appens format av dagens betänkanden + ev. voteringar. */
@@ -157,6 +188,7 @@ export function bygg(datum, betankanden, voteringar, kalender = {}) {
     debattstart: (kalender.idag && kalender.idag.debattstart) || null,
     arenden, nasta,
     program: kalender.program || [],
+    dagordning: kalender.dagordning || {},
   };
 }
 
@@ -196,7 +228,24 @@ async function main() {
   const kalender = kalJson
     ? { idag: parseKalender(kalJson, datum), nasta: framtid[0] ? parseKalender(kalJson, framtid[0]) : null, program: parseProgram(kalJson, datum) }
     : {};
-  console.log('Kalender:', JSON.stringify({ ...kalender, program: (kalender.program || []).length + ' händelser' }));
+  // Föredragningslistor (dagordning) för dagar inom en vecka: kalenderhändelse → dokumentstatus → f-lista.
+  kalender.dagordning = {};
+  const vecka = new Date(new Date(datum + 'T12:00:00Z').getTime() + 7 * 864e5).toISOString().slice(0, 10);
+  const perDag = new Map();
+  for (const h of kalender.program || []) if (h.dokid && h.datum <= vecka && !perDag.has(h.datum)) perDag.set(h.datum, h.dokid);
+  for (const [dagen, dokid] of [...perDag].slice(0, 6)) {
+    try {
+      const st = await hamtaJson(`${API}/dokumentstatus/${encodeURIComponent(dokid)}.json`);
+      const ref = lista(st && st.dokumentstatus && st.dokumentstatus.dokreferens && st.dokumentstatus.dokreferens.referens)
+        .find(r => r.ref_dok_typ === 'f-lista');
+      if (!ref) continue;
+      const svar = await fetch(`${API}/dokument/${encodeURIComponent(ref.ref_dok_id)}.html`, { headers: { 'User-Agent': 'Kammarkoll' } });
+      if (!svar.ok) continue;
+      const sektioner = parseForedragningslista(await svar.text());
+      if (sektioner.length) kalender.dagordning[dagen] = { id: ref.ref_dok_id, titel: ref.uppgift || '', sektioner };
+    } catch (e) { console.warn('Dagordning saknas för', dagen, e.message); }
+  }
+  console.log('Kalender:', JSON.stringify({ idag: kalender.idag, nasta: kalender.nasta, program: (kalender.program || []).length + ' händelser', dagordning: Object.keys(kalender.dagordning) }));
 
   const ut = bygg(datum, betankanden, voteringar, kalender);
   await mkdir('data', { recursive: true });

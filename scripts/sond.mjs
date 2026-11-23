@@ -54,3 +54,12 @@ for (const u of [`${API}/kalender/?org=kamm&datum=${dag}&utformat=json`, `${API}
   const l = [].concat(r?.kalenderlista?.kalender || []);
   console.log(`  ${l.length} poster, första ${l[0]?.DTSTART} ${l[0]?.SUMMARY}`);
 }
+
+// Föredragningslista via XRDDOKID
+for (const k of alla.filter(k => String(k.DTSTART).startsWith(datumKod) && k.XRDDOKID)) {
+  const id = k.XRDDOKID;
+  const st = await get(`${API}/dokumentstatus/${id}.json`);
+  if (st) console.log(kort(JSON.stringify(st), 3000));
+  await get(`${API}/dokument/${id}.text`, false);
+  await get(`${API}/dokument/${id}.html`, false);
+}

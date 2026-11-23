@@ -48,7 +48,7 @@ const alla = [].concat(kal?.kalenderlista?.kalender || []);
 const datumKod = dag.replaceAll('-', '');
 console.log(`\nKalender totalt ${alla.length}, DTSTART-intervall ${alla.map(k => k.DTSTART).sort()[0]} – ${alla.map(k => k.DTSTART).sort().at(-1)}`);
 for (const k of alla.filter(k => String(k.DTSTART).startsWith(datumKod)))
-  console.log(`  ${k.DTSTART} ${k.SUMMARY} | ${k.CATEGORIES} | ${k.XRDDTSTARTSTATUS} | ${k.XRDDOKID} | ${kort(JSON.stringify(k.DESCRIPTION), 120)}`);
+  console.log(`  ${k.DTSTART} ${k.SUMMARY} | ${k.CATEGORIES} | ${k.XRDDTSTARTSTATUS} | ${k.XRDDOKID} | ${kort(JSON.stringify(k.DESCRIPTION), 1500)}`);
 for (const u of [`${API}/kalender/?org=kamm&datum=${dag}&utformat=json`, `${API}/kalender/?org=kamm&fdatum=${dag}&tdatum=${dag}&utformat=json`, `${API}/kalender/?org=kamm&from=${dag}&tom=${dag}&utformat=json&sz=500&sort=c`]) {
   const r = await get(u);
   const l = [].concat(r?.kalenderlista?.kalender || []);

@@ -63,3 +63,9 @@ for (const k of alla.filter(k => String(k.DTSTART).startsWith(datumKod) && k.XRD
   await get(`${API}/dokument/${id}.text`, false);
   await get(`${API}/dokument/${id}.html`, false);
 }
+
+// Själva föredragningslistan
+const fl = await get(`${API}/dokumentstatus/HE0I20.json`);
+if (fl) console.log('FL-NYCKLAR', Object.keys(fl.dokumentstatus || {}), kort(JSON.stringify(fl.dokumentstatus?.dokument), 600));
+const flh = await (await fetch(`${API}/dokument/HE0I20.html`, H)).text();
+console.log('FL-HTML', flh.length, kort(flh.replace(/<style[\s\S]*?<\/style>/g, ''), 4000));

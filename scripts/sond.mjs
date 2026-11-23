@@ -69,3 +69,9 @@ const fl = await get(`${API}/dokumentstatus/HE0I20.json`);
 if (fl) console.log('FL-NYCKLAR', Object.keys(fl.dokumentstatus || {}), kort(JSON.stringify(fl.dokumentstatus?.dokument), 600));
 const flh = await (await fetch(`${API}/dokument/HE0I20.html`, H)).text();
 console.log('FL-HTML', flh.length, kort(flh.replace(/<style[\s\S]*?<\/style>/g, ''), 4000));
+const avk = s => s.replace(/<[^>]+>/g, ' ').replace(/&#xa0;|&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+for (const r of flh.match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || []) {
+  const celler = (r.match(/<td[^>]*>[\s\S]*?<\/td>/g) || []).map(avk);
+  const klasser = [...new Set([...r.matchAll(/class="(\w+)"/g)].map(m => m[1]))];
+  console.log('FL-RAD', celler.join(' | '), ' ', klasser.join(','));
+}

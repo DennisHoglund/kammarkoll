@@ -8,7 +8,7 @@ const DAG = {
   beslutstid: '16:00',
   arenden: [
     { id: 'a1', beteckning: '2026/27:TU1', utskott: 'TU', titel: 'Laddning vid rastplatser', fraga: 'Ska staten bygga laddning?', utskottSager: 'nej', reservationer: 4, status: 'beslutat',
-      resultat: { utfall: 'nej', ja: 150, nej: 175, avstar: 0, franvarande: 24, partier: [{ parti: 'P1', ja: 100, nej: 0, avstar: 0, franvarande: 10 }, { parti: 'P2', ja: 50, nej: 175, avstar: 0, franvarande: 14 }] } },
+      resultat: { utfall: 'nej', tid: '16:03', punkt: 2, voteringar: 2, ja: 150, nej: 175, avstar: 0, franvarande: 24, partier: [{ parti: 'P1', ja: 100, nej: 0, avstar: 0, franvarande: 10 }, { parti: 'P2', ja: 50, nej: 175, avstar: 0, franvarande: 14 }] } },
     { id: 'a2', beteckning: '2026/27:UbU1', utskott: 'UbU', titel: 'Mobilfri skoldag', fraga: 'Ska mobiler samlas in?', reservationer: 1, status: 'beslutat',
       resultat: { utfall: 'ja', ja: 175, nej: 150, avstar: 0, franvarande: 24 } },
     { id: 'a3', beteckning: '2026/27:CU1', utskott: 'CU', titel: 'Kontantinsats', fraga: 'Ska staten gå i borgen?', status: 'kommande' },
@@ -55,6 +55,7 @@ test('röst på beslutat ärende visar utfall, plenisal och partier', async ({ p
   await expect(res).toContainText('RIKSDAGEN SA NEJ');
   await expect(res).toContainText('150–175');
   await expect(res.locator('circle')).toHaveCount(349);
+  await expect(res).toContainText('Votering om förslagspunkt 2 – ärendet hade 2 voteringar · kl. 16:03');
   await expect(page.getByText('Du röstade ja – mot riksdagen')).toBeVisible();
   await expect(page.getByText('Så röstade partierna')).toBeVisible();
   await page.getByRole('button', { name: 'Tillbaka' }).click();
@@ -71,6 +72,26 @@ test('efter alla röster visas din dag med rätt räkning', async ({ page }) => 
   const sum = page.getByTestId('summering');
   await expect(sum).toContainText('Du röstade som riksdagen i 1 av 2');
   await expect(page.getByText('Riksdagen: beslut 16:00')).toBeVisible();
+});
+
+test('beslut utan votering (acklamation) visas som beslutat och jämförs med ja', async ({ page }) => {
+  const arenden = [
+    { id: 'b1', beteckning: '2026/27:TU2', utskott: 'TU', titel: 'Vägar', fraga: 'Ska vägar byggas?', reservationer: 2, status: 'beslutat', acklamation: true },
+    { id: 'b2', beteckning: '2026/27:SoU6', utskott: 'SoU', titel: 'Arvsfonden', fraga: 'Redovisning.', reservationer: 0, status: 'beslutat', acklamation: true },
+  ];
+  await oppna(page, { ...DAG, arenden });
+  await page.getByRole('button', { name: 'Nej' }).click();
+  const res = page.getByTestId('resultat');
+  await expect(res).toContainText('RIKSDAGEN SA JA');
+  await expect(res).toContainText('Beslutat utan votering');
+  await expect(page.getByText('Du röstade nej – mot riksdagen')).toBeVisible();
+  await page.getByRole('button', { name: 'Tillbaka' }).click();
+  await expect(page.getByTestId('summering')).toContainText('Du röstade som riksdagen i 0 av 1');
+  await expect(page.getByText('Riksdagen: ja (utan votering)')).toBeVisible();
+  const eniga = page.getByTestId('eniga');
+  await expect(eniga).toContainText('beslutat utan votering');
+  await eniga.getByRole('button').click();
+  await expect(page.getByTestId('resultat')).toContainText('Beslutat utan votering');
 });
 
 test('röster sparas över omladdning', async ({ page }) => {

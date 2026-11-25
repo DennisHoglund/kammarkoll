@@ -19,7 +19,8 @@ export function riksmote(datum) {
 }
 
 const lista = v => (Array.isArray(v) ? v : v ? [v] : []);
-const dag = v => (typeof v === 'string' ? v.slice(0, 10) : '');
+// Bara riktiga datum – riksdagen skriver "0" när beslutsdag saknas.
+const dag = v => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : '');
 
 /** Första stycket ur riksdagens notis (HTML) som ren text, max ~260 tecken. */
 export function forstaStycke(html) {
@@ -53,7 +54,9 @@ export function parseBetankanden(json) {
     sammanfattning: forstaStycke(d.notis || d.summary || ''),
     utskottSager: utskottetsForslag(d.notis || d.summary || ''),
     reservationer: Number.isFinite(Number(d.reservationer)) ? Number(d.reservationer) : null,
-    beslutsdag: dag(d.beslutsdag) || dag(d.beslutad),
+    beslutsdag: dag(d.beslutsdag),
+    // "1" när kammaren har fattat beslut – även utan votering (acklamation). Verifierat 2026-11-25.
+    beslutad: String(d.beslutad) === '1',
     debattdag: dag(d.debattdag),
     url: d.dokument_url_html ? (String(d.dokument_url_html).startsWith('//') ? 'https:' + d.dokument_url_html : d.dokument_url_html) : null,
   })).filter(b => b.id && b.beteckning);
@@ -82,6 +85,8 @@ export function parseVotering(json) {
   return {
     utfall: tot.ja > tot.nej ? 'ja' : 'nej',
     ...(tid ? { tid } : {}),
+    ...(forsta.punkt ? { punkt: Number(forsta.punkt) } : {}),
+    voteringar: new Set(urval.map(r => r.votering_id)).size,
     ...tot,
     partier: Object.entries(per).map(([parti, v]) => ({ parti, ...v })).sort((a, b) => (b.ja + b.nej) - (a.ja + a.nej)),
   };
@@ -163,6 +168,8 @@ export function bygg(datum, betankanden, voteringar, kalender = {}) {
   const idag = betankanden.filter(b => b.beslutsdag === datum);
   const arenden = idag.map(b => {
     const res = voteringar[b.id] || null;
+    // Beslutat utan votering = kammaren biföll utskottets förslag med acklamation.
+    const acklamation = !res && b.beslutad;
     return {
       id: b.id,
       beteckning: `${b.rm || ''}:${b.beteckning}`.replace(/^:/, ''),
@@ -171,8 +178,9 @@ export function bygg(datum, betankanden, voteringar, kalender = {}) {
       fraga: b.sammanfattning || b.titel,
       utskottSager: b.utskottSager,
       reservationer: b.reservationer,
-      status: res ? 'beslutat' : 'kommande',
+      status: res || acklamation ? 'beslutat' : 'kommande',
       ...(res ? { resultat: res } : {}),
+      ...(acklamation ? { acklamation: true } : {}),
       url: b.url,
     };
   });
@@ -250,7 +258,7 @@ async function main() {
   const ut = bygg(datum, betankanden, voteringar, kalender);
   await mkdir('data', { recursive: true });
   await writeFile('data/idag.json', JSON.stringify(ut, null, 2));
-  console.log(`Skrev data/idag.json: ${ut.arenden.length} ärenden, ${Object.keys(voteringar).length} beslutade, nästa: ${JSON.stringify(ut.nasta)}`);
+  console.log(`Skrev data/idag.json: ${ut.arenden.length} ärenden, ${Object.keys(voteringar).length} med votering, ${ut.arenden.filter(a => a.acklamation).length} utan votering, nästa: ${JSON.stringify(ut.nasta)}`);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

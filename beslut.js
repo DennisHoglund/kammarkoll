@@ -100,23 +100,30 @@
       : `<span class="chip gra">${text}</span>`;
   }
 
+  // Riksdagens svar: voteringens utfall, eller ja när förslaget bifölls utan votering (acklamation).
+  function utfall(a) {
+    if (a.status !== 'beslutat') return null;
+    return a.resultat ? a.resultat.utfall : a.acklamation ? 'ja' : null;
+  }
+
   function jamfor(dittVal, a) {
-    if (a.status !== 'beslutat' || !a.resultat) return 'vantar';
+    const u = utfall(a);
+    if (!u) return 'vantar';
     if (!dittVal || dittVal === 'avstar') return 'vantar';
-    return dittVal === a.resultat.utfall ? 'lika' : 'olika';
+    return dittVal === u ? 'lika' : 'olika';
   }
 
   function sammanfattning(el, data, roster) {
     const arenden = data.arenden;
-    const avgjorda = arenden.filter(a => a.status === 'beslutat' && roster[a.id] && roster[a.id] !== 'avstar');
-    const lika = avgjorda.filter(a => roster[a.id] === a.resultat.utfall).length;
+    const avgjorda = arenden.filter(a => utfall(a) && roster[a.id] && roster[a.id] !== 'avstar');
+    const lika = avgjorda.filter(a => roster[a.id] === utfall(a)).length;
     const omkrets = 2 * Math.PI * 44;
     const andel = avgjorda.length ? lika / avgjorda.length : 0;
     const allaBeslutade = arenden.every(a => a.status === 'beslutat');
     const rader = arenden.map(a => {
       const j = jamfor(roster[a.id], a);
       const ik = j === 'lika' ? 'check' : j === 'olika' ? 'x' : 'klocka';
-      const rd = a.status === 'beslutat' && a.resultat ? VAL_TEXT[a.resultat.utfall] : 'beslut ' + (data.beslutstid || 'senare');
+      const rd = utfall(a) ? VAL_TEXT[utfall(a)] + (a.acklamation ? ' (utan votering)' : '') : 'beslut ' + (data.beslutstid || 'senare');
       return `<button type="button" class="rad-arende" data-id="${esc(a.id)}">
         <span class="markor ${j}">${ikon(ik)}</span>
         <span class="text"><span class="titel">${esc(a.titel)}</span><span class="under">Du: ${VAL_TEXT[roster[a.id]] || '–'} · Riksdagen: ${esc(rd)}</span></span>
@@ -141,17 +148,17 @@
       ${data.exempel ? '<p class="liten">Exempeldata</p>' : ''}`;
     el.querySelectorAll('[data-id]').forEach(b => b.addEventListener('click', () => {
       const a = data.arenden.concat(data.eniga || []).find(x => x.id === b.dataset.id);
-      if (a && a.status === 'beslutat') { vy = { typ: 'resultat', id: a.id }; render(el, data); }
+      if (a && utfall(a)) { vy = { typ: 'resultat', id: a.id }; render(el, data); }
     }));
   }
 
   function eniga(data) {
     if (!data.eniga || !data.eniga.length) return '';
     const rader = data.eniga.map(a => {
-      const klar = a.status === 'beslutat' && a.resultat;
+      const klar = utfall(a);
       return `<button type="button" class="rad-arende" data-id="${esc(a.id)}">
         <span class="markor vantar">${ikon(klar ? 'check' : 'klocka')}</span>
-        <span class="text"><span class="titel">${esc(a.titel)}</span><span class="under">${esc(KKData.utskott(a.utskott).namn)}${klar ? ' · riksdagen sa ' + VAL_TEXT[a.resultat.utfall] : ''}</span></span>
+        <span class="text"><span class="titel">${esc(a.titel)}</span><span class="under">${esc(KKData.utskott(a.utskott).namn)}${klar ? (a.acklamation ? ' · beslutat utan votering' : ' · riksdagen sa ' + VAL_TEXT[klar]) : ''}</span></span>
       </button>`;
     }).join('');
     return `<h2>Eniga beslut <span style="color:var(--text-3);font-weight:600">${data.eniga.length}</span></h2>
@@ -166,6 +173,7 @@
   }
 
   function resultat(el, data, a, roster) {
+    if (!a.resultat) return utanVotering(el, data, a, roster);
     const r = a.resultat;
     const u = KKData.utskott(a.utskott);
     const ditt = roster[a.id];
@@ -192,10 +200,34 @@
           ${r.avstar ? `<span><i style="background:var(--text-3)"></i>Avstår ${r.avstar}</span>` : ''}
           <span><i style="background:var(--franvarande)"></i>Frånvarande ${r.franvarande || 0}</span>
         </div>
+        ${r.punkt ? `<p class="liten" style="margin:0">Votering om förslagspunkt ${esc(r.punkt)}${r.voteringar > 1 ? ` – ärendet hade ${esc(r.voteringar)} voteringar` : ''}${r.tid ? ` · kl. ${esc(r.tid)}` : ''}</p>` : ''}
       </section>
       ${j === 'vantar' ? '' : `<section class="du ${j}"><span class="rund">${ikon(j === 'lika' ? 'check' : 'x')}</span>
         <div><strong>Du röstade ${VAL_TEXT[ditt]} – ${j === 'lika' ? 'som riksdagen' : 'mot riksdagen'}</strong></div></section>`}
       ${partier ? `<h2>Så röstade partierna</h2><div class="partier glas">${partier}</div>` : ''}
+      ${a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener" style="text-align:center;font-weight:600">Läs ärendet på riksdagen.se</a>` : ''}`;
+    el.querySelector('.tillbaka').addEventListener('click', () => { vy = { typ: 'flode' }; render(el, data); });
+    el.focus();
+  }
+
+  // Beslut utan votering: kammaren biföll utskottets förslag (acklamation) – inga siffror att visa.
+  function utanVotering(el, data, a, roster) {
+    const u = KKData.utskott(a.utskott);
+    const ditt = roster[a.id];
+    const j = jamfor(ditt, a);
+    el.innerHTML = `
+      <div><button type="button" class="tillbaka glas" aria-label="Tillbaka">${ikon('tillbaka')}</button></div>
+      <header style="display:flex;flex-direction:column;gap:4px">
+        <p class="overrad">${esc(u.namn)}${a.beteckning ? ' · ' + esc(a.beteckning) : ''}</p>
+        <h1 style="font-size:28px;line-height:33px">${esc(a.titel)}</h1>
+      </header>
+      <section class="resultat glas" data-testid="resultat">
+        <span class="utfall ja">${ikon('check')}RIKSDAGEN SA JA</span>
+        <p style="margin:0;text-align:center"><strong>Beslutat utan votering</strong><br>
+          <span class="liten">Ingen begärde votering, så kammaren biföll utskottets förslag med acklamation.</span></p>
+      </section>
+      ${j === 'vantar' ? '' : `<section class="du ${j}"><span class="rund">${ikon(j === 'lika' ? 'check' : 'x')}</span>
+        <div><strong>Du röstade ${VAL_TEXT[ditt]} – ${j === 'lika' ? 'som riksdagen' : 'mot riksdagen'}</strong></div></section>`}
       ${a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener" style="text-align:center;font-weight:600">Läs ärendet på riksdagen.se</a>` : ''}`;
     el.querySelector('.tillbaka').addEventListener('click', () => { vy = { typ: 'flode' }; render(el, data); });
     el.focus();

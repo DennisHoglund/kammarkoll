@@ -16,8 +16,9 @@ const dokSvar = {
   dokumentlista: {
     dokument: [
       { dok_id: 'HE01TU1', rm: '2026/27', beteckning: 'TU1', organ: 'TU', titel: 'Laddning', notis: '<p>Kort om laddning. Utskottet föreslår att riksdagen säger nej till motionerna.</p> <p>Mer text.</p>', reservationer: '0', beslutsdag: '2026-11-25', dokument_url_html: '//data.riksdagen.se/dokument/HE01TU1.html' },
-      { dok_id: 'HE01CU2', rm: '2026/27', beteckning: 'CU2', organ: 'CU', titel: 'Bostad', reservationer: '2', beslutsdag: '2026-11-25' },
-      { dok_id: 'HE01SkU9', rm: '2026/27', beteckning: 'SkU9', organ: 'SkU', titel: 'Ej satt', beslutsdag: '0' },
+      { dok_id: 'HE01CU2', rm: '2026/27', beteckning: 'CU2', organ: 'CU', titel: 'Bostad', reservationer: '2', beslutsdag: '2026-11-25', beslutad: '0' },
+      { dok_id: 'HE01SoU6', rm: '2026/27', beteckning: 'SoU6', organ: 'SoU', titel: 'Utan votering', reservationer: '0', beslutsdag: '2026-11-25', beslutad: '1' },
+      { dok_id: 'HE01SkU9', rm: '2026/27', beteckning: 'SkU9', organ: 'SkU', titel: 'Ej satt', beslutsdag: '0', beslutad: '1' },
       { dok_id: 'HE01KU3', rm: '2026/27', beteckning: 'KU3', organ: 'KU', titel: 'Grundlag', beslutsdag: '2026-11-26' },
     ],
   },
@@ -25,7 +26,11 @@ const dokSvar = {
 
 test('betänkanden parsas och url får https', () => {
   const b = parseBetankanden(dokSvar);
-  assert.equal(b.length, 4);
+  assert.equal(b.length, 5);
+  assert.equal(b[1].beslutad, false);
+  assert.equal(b[2].beslutad, true);
+  // "0" är ingen beslutsdag, och beslutad ("1") får inte tolkas som datum
+  assert.equal(b[3].beslutsdag, '');
   assert.equal(b[0].url, 'https://data.riksdagen.se/dokument/HE01TU1.html');
   assert.equal(b[0].utskott, 'TU');
   assert.equal(b[0].sammanfattning, 'Kort om laddning. Utskottet föreslår att riksdagen säger nej till motionerna.');
@@ -57,6 +62,8 @@ test('votering: första punkten i sakfrågan räknas, per parti', () => {
   assert.equal(r.utfall, 'ja');
   assert.equal(r.tid, '16:03');
   assert.equal(r.partier.find(p => p.parti === 'P1').ja, 2);
+  assert.equal(r.punkt, 1);
+  assert.equal(r.voteringar, 2);
 });
 
 test('tom votering ger null', () => {
@@ -66,13 +73,20 @@ test('tom votering ger null', () => {
 test('bygg: dagens ärenden, status och nästa beslutsdag', () => {
   const b = parseBetankanden(dokSvar);
   const ut = bygg('2026-11-25', b, { HE01TU1: { utfall: 'nej', ja: 1, nej: 2, avstar: 0, franvarande: 0, partier: [] } });
-  assert.equal(ut.arenden.length, 2);
+  assert.equal(ut.arenden.length, 3);
   // omstridda först
   assert.equal(ut.arenden[0].id, 'HE01CU2');
   assert.equal(ut.arenden[0].status, 'kommande');
-  assert.equal(ut.arenden[1].status, 'beslutat');
-  assert.equal(ut.arenden[1].beteckning, '2026/27:TU1');
-  assert.equal(ut.arenden[1].utskottSager, 'nej');
+  const tu = ut.arenden.find(a => a.id === 'HE01TU1');
+  assert.equal(tu.status, 'beslutat');
+  assert.equal(tu.beteckning, '2026/27:TU1');
+  assert.equal(tu.utskottSager, 'nej');
+  assert.equal(tu.acklamation, undefined);
+  // beslutad utan votering → beslutat med acklamation, inget resultat
+  const sou = ut.arenden.find(a => a.id === 'HE01SoU6');
+  assert.equal(sou.status, 'beslutat');
+  assert.equal(sou.acklamation, true);
+  assert.equal(sou.resultat, undefined);
   assert.deepEqual(ut.nasta, { datum: '2026-11-26', tid: null, antal: 1 });
   assert.equal(ut.exempel, false);
 });

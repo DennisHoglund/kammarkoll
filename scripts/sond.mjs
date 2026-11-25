@@ -25,53 +25,22 @@ for (const x of dok.slice(0, 17)) {
   console.log(`  notis (${String(x.notis || '').length} tecken): ${kort(x.notis, 400)}`);
 }
 
-// Kalender: prova några URL-varianter
-for (const u of [
-  `${API}/kalender/?org=kamm&from=${dag}&tom=${dag}&utformat=json`,
-  `${API}/kalender/?akt=bes&from=${dag}&tom=${dag}&utformat=json`,
-  `${API}/kalender/?org=kamm&from=${dag}&tom=${dag}&utformat=xml`,
-  `${API}/kalender/?org=kamm&from=${dag}&tom=${dag}&utformat=icalendar`,
-]) {
-  const k = await get(u, u.includes('json'));
-  if (k) console.log(kort(JSON.stringify(k), 2500));
-}
-
-// Votering från förra riksmötet som referens för fältnamn
-const v = await get(`${API}/voteringlista/?rm=2025%2F26&bet=SkU8&utformat=json&sz=5`);
-if (v) console.log(kort(JSON.stringify(v), 2000));
-const v2 = await get(`${API}/voteringlista/?rm=2025%2F26&utformat=json&sz=3`);
-if (v2) console.log(kort(JSON.stringify(v2), 2000));
-
-// Kalender del 2: filtrera själv på datum
-const kal = await get(`${API}/kalender/?org=kamm&utformat=json&sz=500`);
-const alla = [].concat(kal?.kalenderlista?.kalender || []);
-const datumKod = dag.replaceAll('-', '');
-console.log(`\nKalender totalt ${alla.length}, DTSTART-intervall ${alla.map(k => k.DTSTART).sort()[0]} – ${alla.map(k => k.DTSTART).sort().at(-1)}`);
-for (const k of alla.filter(k => String(k.DTSTART).startsWith(datumKod)))
-  console.log(`  ${k.DTSTART} ${k.SUMMARY} | ${k.CATEGORIES} | ${k.XRDDTSTARTSTATUS} | ${k.XRDDOKID} | ${kort(JSON.stringify(k.DESCRIPTION), 1500)}`);
-for (const u of [`${API}/kalender/?org=kamm&datum=${dag}&utformat=json`, `${API}/kalender/?org=kamm&fdatum=${dag}&tdatum=${dag}&utformat=json`, `${API}/kalender/?org=kamm&from=${dag}&tom=${dag}&utformat=json&sz=500&sort=c`]) {
-  const r = await get(u);
-  const l = [].concat(r?.kalenderlista?.kalender || []);
-  console.log(`  ${l.length} poster, första ${l[0]?.DTSTART} ${l[0]?.SUMMARY}`);
-}
-
-// Föredragningslista via XRDDOKID
-for (const k of alla.filter(k => String(k.DTSTART).startsWith(datumKod) && k.XRDDOKID)) {
-  const id = k.XRDDOKID;
-  const st = await get(`${API}/dokumentstatus/${id}.json`);
-  if (st) console.log(kort(JSON.stringify(st), 3000));
-  await get(`${API}/dokument/${id}.text`, false);
-  await get(`${API}/dokument/${id}.html`, false);
-}
-
-// Själva föredragningslistan
-const fl = await get(`${API}/dokumentstatus/HE0I20.json`);
-if (fl) console.log('FL-NYCKLAR', Object.keys(fl.dokumentstatus || {}), kort(JSON.stringify(fl.dokumentstatus?.dokument), 600));
-const flh = await (await fetch(`${API}/dokument/HE0I20.html`, H)).text();
-console.log('FL-HTML', flh.length, kort(flh.replace(/<style[\s\S]*?<\/style>/g, ''), 4000));
-const avk = s => s.replace(/<[^>]+>/g, ' ').replace(/&#xa0;|&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
-for (const r of flh.match(/<tr[^>]*>[\s\S]*?<\/tr>/g) || []) {
-  const celler = (r.match(/<td[^>]*>[\s\S]*?<\/td>/g) || []).map(avk);
-  const klasser = [...new Set([...r.matchAll(/class="(\w+)"/g)].map(m => m[1]))];
-  console.log('FL-RAD', celler.join(' | '), ' ', klasser.join(','));
+// Voteringar per betänkande: sammanställ varje votering_id (punkt, avser, votering, röster, tid).
+for (const x of dok) {
+  const v = await get(`${API}/voteringlista/?rm=${encodeURIComponent(x.rm)}&bet=${encodeURIComponent(x.beteckning)}&utformat=json&sz=5000`);
+  const rader = [].concat(v?.voteringlista?.votering || []);
+  console.log(`VOT ${x.beteckning}: ${rader.length} rader, @antal=${v?.voteringlista?.['@antal']}`);
+  if (rader[0]) console.log(`VOT-FÄLT ${Object.keys(rader[0]).join(',')}`);
+  const per = {};
+  for (const r of rader) {
+    const k = r.votering_id;
+    const p = (per[k] = per[k] || { punkt: r.punkt, punkttyp: r.punkttyp, avser: r.avser, votering: r.votering, tid: r.systemdatum, roster: {}, partier: {} });
+    p.roster[r.rost] = (p.roster[r.rost] || 0) + 1;
+    const pp = (p.partier[r.parti] = p.partier[r.parti] || {});
+    pp[r.rost] = (pp[r.rost] || 0) + 1;
+  }
+  for (const [id, p] of Object.entries(per)) {
+    console.log(`VOT ${x.beteckning} punkt=${p.punkt} typ=${p.punkttyp} avser=${p.avser} votering=${p.votering} tid=${p.tid} id=${id.slice(0, 8)} röster=${JSON.stringify(p.roster)}`);
+    console.log(`VOT-PARTI ${x.beteckning} punkt=${p.punkt} ${JSON.stringify(p.partier)}`);
+  }
 }
